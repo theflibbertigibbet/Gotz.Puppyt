@@ -266,43 +266,33 @@ button.on {
 /* Onion Skinning Ghost Outlines */
 .onion-ghost {
   pointer-events: none;
-  opacity: 0.55;
+  filter: url(#ghostBlur);
   transition: opacity 0.15s ease;
 }
 
-.onion-ghost.prev .bone {
-  stroke: #00f0ff;
-  stroke-width: 0.045;
+.onion-ghost .bone {
+  fill: #6e687e !important;
+  fill-opacity: 0.62;
+  stroke: #a29bb8;
+  stroke-width: 0.035;
   stroke-dasharray: 0.08 0.05;
-  fill: rgba(0, 240, 255, 0.08);
 }
 
-.onion-ghost.prev .wrist-sock {
-  stroke: #00f0ff;
-  stroke-width: 0.045;
-  fill: rgba(0, 240, 255, 0.08);
+.onion-ghost .wrist-sock {
+  fill: #6e687e !important;
+  fill-opacity: 0.62;
+  stroke: #a29bb8;
+  stroke-width: 0.035;
 }
 
-.onion-ghost.prev .wrist-plug {
-  fill: #00f0ff;
+.onion-ghost .wrist-plug {
+  fill: #857e9c !important;
 }
 
-.onion-ghost.next .bone {
-  stroke: #ff00aa;
-  stroke-width: 0.045;
-  stroke-dasharray: 0.08 0.05;
-  fill: rgba(255, 0, 170, 0.08);
-}
-
-.onion-ghost.next .wrist-sock {
-  stroke: #ff00aa;
-  stroke-width: 0.045;
-  fill: rgba(255, 0, 170, 0.08);
-}
-
-.onion-ghost.next .wrist-plug {
-  fill: #ff00aa;
-}
+.onion-ghost.prev .bone { stroke: #00f0ff; fill: #5a7582 !important; fill-opacity: 0.65; }
+.onion-ghost.mid .bone { stroke: #ffea00; fill: #7a7752 !important; fill-opacity: 0.65; }
+.onion-ghost.next .bone { stroke: #ff00aa; fill: #7d5972 !important; fill-opacity: 0.65; }
+.onion-ghost.history .bone { stroke: #b0a8c8; fill: #6e687e !important; fill-opacity: 0.55; }
 
 .hit {
   fill: transparent;
@@ -834,6 +824,123 @@ button.on {
   border-color: var(--lime);
   color: #120e18;
   font-weight: 700;
+}
+
+/* Compact Interactive Posing Wheel Widget */
+.posing-wheel-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  box-shadow: 0 4px 12px #0003;
+  width: 100%;
+}
+
+.posing-wheel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.posing-wheel-title {
+  font-family: var(--font-btn);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--lime);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.posing-wheel-val {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--fg);
+}
+
+.posing-wheel-body {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.posing-wheel-wrap {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.posing-wheel-wrap:active {
+  cursor: grabbing;
+}
+
+.posing-wheel-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.posing-wheel-ticks line {
+  stroke: var(--mut);
+  stroke-width: 1;
+  opacity: 0.6;
+}
+
+.posing-wheel-ring {
+  fill: none;
+  stroke: var(--bd);
+  stroke-width: 3.5;
+}
+
+.posing-wheel-indicator {
+  stroke: var(--wrist);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.posing-wheel-knob {
+  fill: var(--panel);
+  stroke: var(--acc);
+  stroke-width: 1.8;
+}
+
+.posing-wheel-center-txt {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+  fill: var(--fg);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.posing-wheel-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.posing-wheel-snaps {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.posing-wheel-snaps button {
+  height: 24px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-family: var(--font-btn);
 }
 
 .finger-cards-grid {

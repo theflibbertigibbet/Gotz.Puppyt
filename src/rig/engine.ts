@@ -129,10 +129,15 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
           <filter id="filmBlur" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation=".0055"/>
           </filter>
+          <filter id="ghostBlur" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation=".02"/>
+          </filter>
         </defs>
         <g id="grid"></g>
         <g id="pose-base"></g>
+        <g id="onion-history"></g>
         <g id="onion-prev" class="onion-ghost prev"></g>
+        <g id="onion-mid" class="onion-ghost mid"></g>
         <g id="onion-next" class="onion-ghost next"></g>
         <g id="hand" filter="url(#filmBlur)"></g>
       </svg>
@@ -149,6 +154,8 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
         <span style="color:var(--mut);font-size:10px">FROM:</span>
         <select id="tl-from" class="tl-select"></select>
         <button id="tl-swap" class="tl-btn" title="Swap From and To poses" style="padding:0 5px">&lt;-&gt;</button>
+        <span style="color:var(--mut);font-size:10px">MID:</span>
+        <select id="tl-mid" class="tl-select"></select>
         <span style="color:var(--mut);font-size:10px">TO:</span>
         <select id="tl-to" class="tl-select"></select>
       </div>
@@ -156,9 +163,11 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       <div class="tl-track-container" id="tl-track" title="Drag left/right to scrub · Drag up/down to set easing curve · Double-click to reset straight line">
         <svg class="tl-svg" id="tl-svg">
           <line class="tl-base-line" id="tl-guide" x1="14" y1="24" x2="300" y2="24" />
+          <g id="tl-frame-ticks"></g>
           <path class="tl-curve-line" id="tl-line" d="M 14 24 L 300 24" />
-          <circle class="tl-node" id="tl-node-start" cx="14" cy="24" r="4.5" />
-          <circle class="tl-node" id="tl-node-end" cx="300" cy="24" r="4.5" />
+          <circle class="tl-node" id="tl-node-start" cx="14" cy="24" r="4.5" title="Start pose (0%)" />
+          <circle class="tl-node" id="tl-node-mid" cx="157" cy="24" r="4" title="Mid / Pass pose (50%)" />
+          <circle class="tl-node" id="tl-node-end" cx="300" cy="24" r="4.5" title="End pose (100%)" />
           <g id="tl-head-group">
             <circle class="tl-head-outer" id="tl-head" cx="14" cy="24" r="7" />
             <circle class="tl-head-inner" cx="14" cy="24" r="2.5" />
@@ -168,9 +177,11 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       </div>
 
       <div class="tl-right">
-        <button id="tl-onion" class="tl-btn" title="Toggle Onion Skinning (Ghosted cyan start & magenta end pose outlines)">[ONION]</button>
+        <button id="tl-onion" class="tl-btn" title="Toggle Onion Skinning (Ghosted blurred gray pose outlines)">[ONION]</button>
+        <button id="tl-onion-depth" class="tl-btn" title="Onion skin history depth (Click to cycle 1..4 poses)">[N: 2]</button>
         <span id="tl-ease-badge" class="tl-badge" title="Click to reset to straight line (Linear)">[LINEAR]</span>
         <button id="tl-set-start" class="tl-btn" title="Pin current canvas pose as Start pose">[PIN S]</button>
+        <button id="tl-set-mid" class="tl-btn" title="Pin current canvas pose as Mid/Passing pose">[PIN M]</button>
         <button id="tl-set-end" class="tl-btn" title="Pin current canvas pose as End pose">[PIN E]</button>
       </div>
     </div>
@@ -282,12 +293,22 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
     container.querySelectorAll<HTMLButtonElement>('.r').forEach((b) => (b.disabled = hi >= hist.length - 1));
   };
 
+  let onionHistory: HandState[] = [copy(defaultState())];
+  let onionDepth = 2; // Default 2 history poses
+
   function commit(s = S) {
     if (same(hist[hi], s)) return;
     hist = hist.slice(0, hi + 1);
     hist.push(copy(s));
     if (hist.length > 60) hist.shift();
     hi = hist.length - 1;
+
+    // Record pose history for onion skin depth display
+    if (!onionHistory.length || !same(onionHistory[onionHistory.length - 1], s)) {
+      onionHistory.push(copy(s));
+      if (onionHistory.length > 10) onionHistory.shift();
+    }
+
     updHist();
   }
 
@@ -433,7 +454,9 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
   };
 
   let onionSkin = false;
+  const onionHistGroup = $<SVGGElement>('#onion-history');
   const onionPrevGroup = $<SVGGElement>('#onion-prev');
+  const onionMidGroup = $<SVGGElement>('#onion-mid');
   const onionNextGroup = $<SVGGElement>('#onion-next');
 
   function draw() {
@@ -442,22 +465,55 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       poseBase.innerHTML = `<line class="pose-base-line" x1="-14" y1="0" x2="14" y2="0"/><title>Pose base line (X-axis base orientation)</title>`;
     }
 
-    if (onionSkin && onionPrevGroup && onionNextGroup) {
+    if (onionSkin) {
+      if (onionHistGroup) {
+        // Render last N poses from history based on onionDepth
+        const histPoses = onionHistory.slice(0, Math.max(0, onionHistory.length - 1)).slice(-onionDepth);
+        let histMarkup = '';
+        histPoses.forEach((st, idx) => {
+          const op = (0.2 + ((idx + 1) / Math.max(1, histPoses.length)) * 0.45).toFixed(2);
+          histMarkup += `<g class="onion-ghost history" transform="rotate(${st.wrist})" style="opacity:${op}">${handMarkup(st, false, false)}</g>`;
+        });
+        onionHistGroup.innerHTML = histMarkup;
+        onionHistGroup.style.display = '';
+      }
+
       const fromSt = poseState(tlFromPose);
       const toSt = poseState(tlToPose);
 
-      onionPrevGroup.setAttribute('transform', `rotate(${fromSt.wrist})`);
-      onionPrevGroup.innerHTML = handMarkup(fromSt, false, false);
+      if (onionPrevGroup) {
+        onionPrevGroup.setAttribute('transform', `rotate(${fromSt.wrist})`);
+        onionPrevGroup.innerHTML = handMarkup(fromSt, false, false);
+        onionPrevGroup.style.display = '';
+      }
 
-      onionNextGroup.setAttribute('transform', `rotate(${toSt.wrist})`);
-      onionNextGroup.innerHTML = handMarkup(toSt, false, false);
+      if (tlMidPose && tlMidPose !== '(Blank)' && tlMidPose !== '' && onionMidGroup) {
+        const midSt = poseState(tlMidPose);
+        onionMidGroup.setAttribute('transform', `rotate(${midSt.wrist})`);
+        onionMidGroup.innerHTML = handMarkup(midSt, false, false);
+        onionMidGroup.style.display = '';
+      } else if (onionMidGroup) {
+        onionMidGroup.style.display = 'none';
+        onionMidGroup.innerHTML = '';
+      }
 
-      onionPrevGroup.style.display = '';
-      onionNextGroup.style.display = '';
+      if (onionNextGroup) {
+        onionNextGroup.setAttribute('transform', `rotate(${toSt.wrist})`);
+        onionNextGroup.innerHTML = handMarkup(toSt, false, false);
+        onionNextGroup.style.display = '';
+      }
     } else {
+      if (onionHistGroup) {
+        onionHistGroup.style.display = 'none';
+        onionHistGroup.innerHTML = '';
+      }
       if (onionPrevGroup) {
         onionPrevGroup.style.display = 'none';
         onionPrevGroup.innerHTML = '';
+      }
+      if (onionMidGroup) {
+        onionMidGroup.style.display = 'none';
+        onionMidGroup.innerHTML = '';
       }
       if (onionNextGroup) {
         onionNextGroup.style.display = 'none';
@@ -971,6 +1027,7 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
   );
 
   const tlFromSelect = $<HTMLSelectElement>('#tl-from');
+  const tlMidSelect = $<HTMLSelectElement>('#tl-mid');
   const tlToSelect = $<HTMLSelectElement>('#tl-to');
 
   const $quickList = el('div', { class: 'col', style: 'gap:6px' });
@@ -1026,10 +1083,12 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       })
     );
 
-    const allDropdowns = [selMorph, selFrom, selTo, tlFromSelect, tlToSelect].filter(Boolean) as HTMLSelectElement[];
+    const allDropdowns = [selMorph, selFrom, selTo, tlFromSelect, tlMidSelect, tlToSelect].filter(Boolean) as HTMLSelectElement[];
     for (const s of allDropdowns) {
       const v = s.value;
-      s.replaceChildren(
+      const isMid = s === tlMidSelect;
+      const options = [
+        ...(isMid ? [el('option', { value: '(Blank)' }, '(Blank)')] : []),
         ...[
           ['Presets', Object.keys(PRESET_POSES)],
           ['Saved', Object.keys(saved)],
@@ -1037,10 +1096,13 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
           .filter((g) => (g[1] as string[]).length)
           .map(([l, ks]) =>
             el('optgroup', { label: l as string }, ...(ks as string[]).map((k) => el('option', { value: k }, k)))
-          )
-      );
+          ),
+      ];
+      s.replaceChildren(...options);
       s.value = [...s.options].some((o) => o.value === v)
         ? v
+        : isMid
+        ? (v || '(Blank)')
         : s === selMorph || s === selTo || s === tlToSelect
         ? (Object.keys(saved)[0] ?? NEUTRAL)
         : NEUTRAL;
@@ -1652,7 +1714,7 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
     el(
       'div',
       { class: 'tb l' },
-      tbtn('[LIB]', 'Pose library', () => show('lib')),
+      tbtn('[LIB]', 'Pose library & saved poses', () => show('lib')),
       tbtn('[~]', 'Live pose morph', () => show('morph')),
       el('hr'),
       $quickList,
@@ -1671,13 +1733,8 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       tbtn('[IMG]', 'Save pose image', () => show('img')),
       tbtn('[FLM]', 'Pose-to-pose animation', () => show('anim')),
       el('hr'),
-      tbtn('<<', 'Undo (Ctrl+Z)', () => stepHist(-1), { class: 'u' }),
-      tbtn('>>', 'Redo (Ctrl+Y)', () => stepHist(1), { class: 'r' }),
       tbtn('<|>', 'Mirror hand', mirror),
-      tbtn('[0]', 'Reset to neutral flat', reset),
-      el('hr'),
-      tbtn('[+P]', 'Quick save as new numbered pose', () => savePose(true)),
-      tbtn('[-P]', 'Delete selected saved pose', delPose)
+      tbtn('[0]', 'Reset to flat', reset)
     )
   );
 
@@ -1842,11 +1899,112 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       cardsGrid.append(g);
     }
 
+    function createPosingWheel() {
+      const card = el('div', { class: 'posing-wheel-card' });
+      const title = el('span', { class: 'posing-wheel-title' }, 'WRIST POSING WHEEL');
+      const valText = el('span', { class: 'posing-wheel-val' }, `${Math.round(S.wrist)}\xB0`);
+      const header = el('div', { class: 'posing-wheel-header' }, title, valText);
+
+      const wrap = el('div', { class: 'posing-wheel-wrap' });
+      const wheelSvg = el('svg', { class: 'posing-wheel-svg', viewBox: '-50 -50 100 100' });
+
+      // Render 12 radial ticks every 30 deg
+      const ticksG = el('g', { class: 'posing-wheel-ticks' });
+      for (let deg = 0; deg < 360; deg += 30) {
+        const rad = (deg * Math.PI) / 180;
+        const x1 = Math.sin(rad) * 38;
+        const y1 = -Math.cos(rad) * 38;
+        const x2 = Math.sin(rad) * 44;
+        const y2 = -Math.cos(rad) * 44;
+        ticksG.append(el('line', { x1, y1, x2, y2 }));
+      }
+
+      const ring = el('circle', { class: 'posing-wheel-ring', r: 42, cx: 0, cy: 0 });
+      const indicator = el('line', { class: 'posing-wheel-indicator', x1: 0, y1: 0, x2: 0, y2: -36 });
+      const knob = el('circle', { class: 'posing-wheel-knob', r: 22, cx: 0, cy: 0 });
+      const centerTxt = el('text', { class: 'posing-wheel-center-txt', x: 0, y: 0 }, `${Math.round(S.wrist)}\xB0`);
+
+      wheelSvg.append(ticksG, ring, indicator, knob, centerTxt);
+      wrap.append(wheelSvg);
+
+      let isWheelDragging = false;
+
+      const updateWheelPointer = (deg: number) => {
+        const rad = (deg * Math.PI) / 180;
+        indicator.setAttribute('x2', String(Math.sin(rad) * 36));
+        indicator.setAttribute('y2', String(-Math.cos(rad) * 36));
+        centerTxt.textContent = `${Math.round(deg)}\xB0`;
+        valText.textContent = `${Math.round(deg)}\xB0 \xB7 Pose: ${getPoseLanguage(S)}`;
+      };
+
+      wrap.onpointerdown = (e: PointerEvent) => {
+        isWheelDragging = true;
+        wrap.setPointerCapture(e.pointerId);
+        const rect = wrap.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        let angle = Math.atan2(e.clientX - cx, -(e.clientY - cy)) * (180 / Math.PI);
+        S.wrist = clamp(Math.round(angle), -180, 180);
+        updateWheelPointer(S.wrist);
+        draw();
+      };
+
+      wrap.onpointermove = (e: PointerEvent) => {
+        if (!isWheelDragging) return;
+        const rect = wrap.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        let angle = Math.atan2(e.clientX - cx, -(e.clientY - cy)) * (180 / Math.PI);
+        S.wrist = clamp(Math.round(angle), -180, 180);
+        updateWheelPointer(S.wrist);
+        draw();
+      };
+
+      wrap.onpointerup = wrap.onpointercancel = () => {
+        if (isWheelDragging) {
+          isWheelDragging = false;
+          commit();
+        }
+      };
+
+      const snapBtn = (lbl: string, deg: number) =>
+        btn(lbl, () => {
+          S.wrist = deg;
+          updateWheelPointer(deg);
+          commit();
+          draw();
+          toast(`Wrist: ${deg}\xB0`, 1200);
+        });
+
+      const snaps = el(
+        'div',
+        { class: 'posing-wheel-snaps' },
+        snapBtn('0\xB0 Flat', 0),
+        snapBtn('90\xB0 Up', 90),
+        snapBtn('-90\xB0 Down', -90),
+        snapBtn('180\xB0 Back', 180)
+      );
+
+      const controls = el('div', { class: 'posing-wheel-controls' }, snaps);
+      const body = el('div', { class: 'posing-wheel-body' }, wrap, controls);
+
+      card.append(header, body);
+
+      sync.push(() => {
+        updateWheelPointer(S.wrist);
+      });
+
+      return card;
+    }
+
     sync.push(updateTopHeaderAndToggles);
+
+    const wheelWidget = createPosingWheel();
 
     controlsContainer.append(
       menuHeader,
       cardsGrid,
+      wheelWidget,
       el('div', {
         id: 'rd',
         html: '<b>Gotz.Puppyt Hand Rig v2 \u2014 canonical rules &amp; reach.</b><br><b>Reach:</b> Middle 8 raw / 7 functional \xB7 Ring 7.5 / 6.5 \xB7 Index 7.5 / 6.5 \xB7 Pinky 7 / 6 \xB7 Thumb 5 / 4.5.<br><b>Proportions:</b> the middle finger sets the master 4:2:1:1 (metacarpal : proximal : middle : distal); each bone fits a 1-wide box, the distal leaves 12.5% empty each side (0.75 pyxl). 1 pyxl = 100 px.<br><b>Framerate Modes:</b> Brad 8 FPS \xB7 Lotte 12 FPS (Default) \xB7 Anime 15 FPS \xB7 Walt 24 FPS \xB7 Pure 60 FPS.',
@@ -1857,11 +2015,12 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
   }
 
   // ----------------------------------------------------
-  // Bottom Pose Timeline with Easing Curve Dragging
+  // Bottom Pose Timeline with Easing Curve Dragging & Discrete Frame Steps
   // ----------------------------------------------------
   let tlTime = 0; // 0 to 1
   let tlAmplitude = 0; // 0 = straight line. Positive = ease out / in-out, Negative = ease in
   let tlFromPose = NEUTRAL;
+  let tlMidPose = '(Blank)';
   let tlToPose = 'Fist';
   let tlPlaying = false;
   let tlLoop = true;
@@ -1895,10 +2054,27 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
   }
 
   function applyTimelinePose(t: number) {
+    // Total discrete frame slots connected to active performance mode FPS
+    const totalFrames = Math.max(1, Math.round(tlDuration * currentFps));
+    const currentFrame = Math.round(t * totalFrames);
+    const snappedT = currentFrame / totalFrames;
+
     const from = poseState(tlFromPose);
     const to = poseState(tlToPose);
-    const easedT = calcTimelineEasing(t, tlAmplitude);
-    S = interpolatePose(from, to, easedT);
+    const easedT = calcTimelineEasing(snappedT, tlAmplitude);
+
+    if (tlMidPose && tlMidPose !== '(Blank)' && tlMidPose !== '') {
+      const mid = poseState(tlMidPose);
+      if (easedT <= 0.5) {
+        const localT = easedT * 2;
+        S = interpolatePose(from, mid, localT);
+      } else {
+        const localT = (easedT - 0.5) * 2;
+        S = interpolatePose(mid, to, localT);
+      }
+    } else {
+      S = interpolatePose(from, to, easedT);
+    }
     draw();
   }
 
@@ -1912,8 +2088,10 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
     const y0 = 24;
 
     const guide = $<SVGLineElement>('#tl-guide');
+    const ticksGroup = $<SVGGElement>('#tl-frame-ticks');
     const line = $<SVGPathElement>('#tl-line');
     const nodeStart = $<SVGCircleElement>('#tl-node-start');
+    const nodeMid = $<SVGCircleElement>('#tl-node-mid');
     const nodeEnd = $<SVGCircleElement>('#tl-node-end');
     const headGroup = $<SVGGElement>('#tl-head-group');
     const easeBadge = $<HTMLElement>('#tl-ease-badge');
@@ -1925,16 +2103,7 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       guide.setAttribute('y1', String(y0));
       guide.setAttribute('y2', String(y0));
     }
-    if (nodeStart) {
-      nodeStart.setAttribute('cx', String(x0));
-      nodeStart.setAttribute('cy', String(y0));
-    }
-    if (nodeEnd) {
-      nodeEnd.setAttribute('cx', String(x1));
-      nodeEnd.setAttribute('cy', String(y0));
-    }
 
-    // Straight line when amplitude is 0, curved when dragged up or down
     const isStraight = Math.abs(tlAmplitude) < 0.5;
     const cpX = (x0 + x1) / 2;
     const cpY = y0 - tlAmplitude;
@@ -1949,11 +2118,50 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       line.classList.toggle('bending', !isStraight);
     }
 
+    // Mid node position at 50% along quadratic curve
+    const midX = cpX;
+    const midY = isStraight ? y0 : 0.25 * y0 + 0.5 * cpY + 0.25 * y0;
+
+    if (nodeStart) {
+      nodeStart.setAttribute('cx', String(x0));
+      nodeStart.setAttribute('cy', String(y0));
+    }
+    if (nodeMid) {
+      nodeMid.setAttribute('cx', String(midX));
+      nodeMid.setAttribute('cy', String(midY));
+      nodeMid.classList.toggle('active', Boolean(tlMidPose && tlMidPose !== '(Blank)'));
+    }
+    if (nodeEnd) {
+      nodeEnd.setAttribute('cx', String(x1));
+      nodeEnd.setAttribute('cy', String(y0));
+    }
+
+    // Render blank frame tick marks matching active performance mode FPS
+    const totalFrames = Math.max(1, Math.round(tlDuration * currentFps));
+    const currentFrame = Math.round(tlTime * totalFrames);
+    const snappedT = currentFrame / totalFrames;
+
+    if (ticksGroup) {
+      let ticksHtml = '';
+      for (let i = 0; i <= totalFrames; i++) {
+        const ft = i / totalFrames;
+        const fx = x0 + (x1 - x0) * ft;
+        const fy = isStraight
+          ? y0
+          : (1 - ft) * (1 - ft) * y0 + 2 * (1 - ft) * ft * cpY + ft * ft * y0;
+        const isKey = i === 0 || i === Math.round(totalFrames / 2) || i === totalFrames;
+        if (!isKey) {
+          ticksHtml += `<circle cx="${fx}" cy="${fy}" r="1.5" fill="var(--mut)" opacity="0.65"/>`;
+        }
+      }
+      ticksGroup.innerHTML = ticksHtml;
+    }
+
     // Position playhead on the line
-    const curX = x0 + (x1 - x0) * tlTime;
+    const curX = x0 + (x1 - x0) * snappedT;
     const curY = isStraight
       ? y0
-      : (1 - tlTime) * (1 - tlTime) * y0 + 2 * (1 - tlTime) * tlTime * cpY + tlTime * tlTime * y0;
+      : (1 - snappedT) * (1 - snappedT) * y0 + 2 * (1 - snappedT) * snappedT * cpY + snappedT * snappedT * y0;
     if (headGroup) {
       headGroup.setAttribute('transform', `translate(${curX - 14}, ${curY - y0})`);
     }
@@ -1963,7 +2171,7 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
     }
 
     if (timeEl) {
-      timeEl.textContent = `${Math.round(tlTime * 100)}% · ${(tlTime * tlDuration).toFixed(2)}s`;
+      timeEl.textContent = `F${currentFrame}/${totalFrames} (${Math.round(snappedT * 100)}%) · ${(snappedT * tlDuration).toFixed(2)}s · ${currentFps} FPS`;
     }
   }
 
@@ -2040,11 +2248,30 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
     };
   }
 
+  const tlOnionDepthBtn = $<HTMLButtonElement>('#tl-onion-depth');
+  if (tlOnionDepthBtn) {
+    tlOnionDepthBtn.onclick = () => {
+      onionDepth = (onionDepth % 4) + 1;
+      tlOnionDepthBtn.textContent = `[N: ${onionDepth}]`;
+      if (onionSkin) draw();
+      toast(`Onion skin depth: ${onionDepth} history poses`, 1400);
+    };
+  }
+
   if (tlFromSelect) {
     tlFromSelect.onchange = () => {
       tlFromPose = tlFromSelect.value;
       applyTimelinePose(tlTime);
       if (onionSkin) draw();
+    };
+  }
+
+  if (tlMidSelect) {
+    tlMidSelect.onchange = () => {
+      tlMidPose = tlMidSelect.value;
+      applyTimelinePose(tlTime);
+      if (onionSkin) draw();
+      renderTimeline();
     };
   }
 
@@ -2082,6 +2309,21 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       applyTimelinePose(tlTime);
       if (onionSkin) draw();
       toast('Pinned current canvas pose as Start', 1500);
+    };
+  }
+
+  const tlSetMidBtn = $<HTMLButtonElement>('#tl-set-mid');
+  if (tlSetMidBtn) {
+    tlSetMidBtn.onclick = () => {
+      const n = 'Mid Pose';
+      saved[n] = cleanPose(S);
+      persist();
+      refresh();
+      tlMidPose = n;
+      if (tlMidSelect) tlMidSelect.value = n;
+      applyTimelinePose(tlTime);
+      if (onionSkin) draw();
+      toast('Pinned current canvas pose as Mid (50%)', 1500);
     };
   }
 
@@ -2194,6 +2436,15 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       tlTime = 0;
       renderTimeline();
       applyTimelinePose(0);
+    };
+  }
+  const nodeMid = $<SVGCircleElement>('#tl-node-mid');
+  if (nodeMid) {
+    nodeMid.onclick = (e) => {
+      e.stopPropagation();
+      tlTime = 0.5;
+      renderTimeline();
+      applyTimelinePose(0.5);
     };
   }
   const nodeEnd = $<SVGCircleElement>('#tl-node-end');
