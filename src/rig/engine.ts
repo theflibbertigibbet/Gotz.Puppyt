@@ -132,6 +132,8 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
         </defs>
         <g id="grid"></g>
         <g id="pose-base"></g>
+        <g id="onion-prev" class="onion-ghost prev"></g>
+        <g id="onion-next" class="onion-ghost next"></g>
         <g id="hand" filter="url(#filmBlur)"></g>
       </svg>
       <div id="toast" hidden></div>
@@ -166,6 +168,7 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       </div>
 
       <div class="tl-right">
+        <button id="tl-onion" class="tl-btn" title="Toggle Onion Skinning (Ghosted cyan start & magenta end pose outlines)">[ONION]</button>
         <span id="tl-ease-badge" class="tl-badge" title="Click to reset to straight line (Linear)">[LINEAR]</span>
         <button id="tl-set-start" class="tl-btn" title="Pin current canvas pose as Start pose">[PIN S]</button>
         <button id="tl-set-end" class="tl-btn" title="Pin current canvas pose as End pose">[PIN E]</button>
@@ -215,6 +218,7 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
   const svg = $<SVGSVGElement>('#s');
   const hand = $<SVGGElement>('#hand');
   const stage = $<HTMLDivElement>('#stage');
+  const poseBase = $<SVGGElement>('#pose-base');
 
   let showBend = false;
   let S: HandState = defaultState();
@@ -428,13 +432,39 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
     refresh();
   };
 
-  const poseBase = $<SVGGElement>('#pose-base');
+  let onionSkin = false;
+  const onionPrevGroup = $<SVGGElement>('#onion-prev');
+  const onionNextGroup = $<SVGGElement>('#onion-next');
 
   function draw() {
     if (poseBase) {
       poseBase.setAttribute('transform', `rotate(${S.wrist})`);
       poseBase.innerHTML = `<line class="pose-base-line" x1="-14" y1="0" x2="14" y2="0"/><title>Pose base line (X-axis base orientation)</title>`;
     }
+
+    if (onionSkin && onionPrevGroup && onionNextGroup) {
+      const fromSt = poseState(tlFromPose);
+      const toSt = poseState(tlToPose);
+
+      onionPrevGroup.setAttribute('transform', `rotate(${fromSt.wrist})`);
+      onionPrevGroup.innerHTML = handMarkup(fromSt, false, false);
+
+      onionNextGroup.setAttribute('transform', `rotate(${toSt.wrist})`);
+      onionNextGroup.innerHTML = handMarkup(toSt, false, false);
+
+      onionPrevGroup.style.display = '';
+      onionNextGroup.style.display = '';
+    } else {
+      if (onionPrevGroup) {
+        onionPrevGroup.style.display = 'none';
+        onionPrevGroup.innerHTML = '';
+      }
+      if (onionNextGroup) {
+        onionNextGroup.style.display = 'none';
+        onionNextGroup.innerHTML = '';
+      }
+    }
+
     hand.setAttribute('transform', `rotate(${S.wrist})`);
     hand.innerHTML = handMarkup(S, true, showBend);
     sync.forEach((f) => f());
@@ -1224,6 +1254,17 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
         '(4:1, 2:1, 1:1, 1:1 + 12.5% margins)',
         () => S.boxes,
         (v) => (S.boxes = v)
+      ),
+      check(
+        'Onion skin keyframes ',
+        '(ghosted cyan start & magenta end pose outlines)',
+        () => onionSkin,
+        (v) => {
+          onionSkin = v;
+          const b = $<HTMLButtonElement>('#tl-onion');
+          if (b) b.classList.toggle('on', onionSkin);
+          draw();
+        }
       )
     )
   );
@@ -1989,10 +2030,21 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
     };
   }
 
+  const tlOnionBtn = $<HTMLButtonElement>('#tl-onion');
+  if (tlOnionBtn) {
+    tlOnionBtn.onclick = () => {
+      onionSkin = !onionSkin;
+      tlOnionBtn.classList.toggle('on', onionSkin);
+      draw();
+      toast(onionSkin ? 'Onion skin: ON' : 'Onion skin: OFF', 1200);
+    };
+  }
+
   if (tlFromSelect) {
     tlFromSelect.onchange = () => {
       tlFromPose = tlFromSelect.value;
       applyTimelinePose(tlTime);
+      if (onionSkin) draw();
     };
   }
 
@@ -2000,6 +2052,7 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
     tlToSelect.onchange = () => {
       tlToPose = tlToSelect.value;
       applyTimelinePose(tlTime);
+      if (onionSkin) draw();
     };
   }
 
@@ -2012,6 +2065,7 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       if (tlFromSelect) tlFromSelect.value = tlFromPose;
       if (tlToSelect) tlToSelect.value = tlToPose;
       applyTimelinePose(tlTime);
+      if (onionSkin) draw();
       toast('Swapped Start & End poses', 1200);
     };
   }
@@ -2026,6 +2080,7 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       tlFromPose = n;
       if (tlFromSelect) tlFromSelect.value = n;
       applyTimelinePose(tlTime);
+      if (onionSkin) draw();
       toast('Pinned current canvas pose as Start', 1500);
     };
   }
@@ -2040,6 +2095,7 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       tlToPose = n;
       if (tlToSelect) tlToSelect.value = n;
       applyTimelinePose(tlTime);
+      if (onionSkin) draw();
       toast('Pinned current canvas pose as End', 1500);
     };
   }

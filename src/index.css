@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&family=Silkscreen:wght@400;700&family=VT323&display=swap');
+@import "tailwindcss";
 
 :root {
   --bg: #120e18;
@@ -261,6 +261,47 @@ button.on {
   stroke-width: 0.045;
   opacity: 0.38;
   pointer-events: none;
+}
+
+/* Onion Skinning Ghost Outlines */
+.onion-ghost {
+  pointer-events: none;
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+
+.onion-ghost.prev .bone {
+  stroke: #00f0ff;
+  stroke-width: 0.045;
+  stroke-dasharray: 0.08 0.05;
+  fill: rgba(0, 240, 255, 0.08);
+}
+
+.onion-ghost.prev .wrist-sock {
+  stroke: #00f0ff;
+  stroke-width: 0.045;
+  fill: rgba(0, 240, 255, 0.08);
+}
+
+.onion-ghost.prev .wrist-plug {
+  fill: #00f0ff;
+}
+
+.onion-ghost.next .bone {
+  stroke: #ff00aa;
+  stroke-width: 0.045;
+  stroke-dasharray: 0.08 0.05;
+  fill: rgba(255, 0, 170, 0.08);
+}
+
+.onion-ghost.next .wrist-sock {
+  stroke: #ff00aa;
+  stroke-width: 0.045;
+  fill: rgba(255, 0, 170, 0.08);
+}
+
+.onion-ghost.next .wrist-plug {
+  fill: #ff00aa;
 }
 
 .hit {
