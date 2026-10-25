@@ -499,6 +499,178 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
     draw();
   }
 
+  type FingerTab = Finger | 'all';
+  let activeTab: FingerTab = 'index';
+
+  const FINGER_TABS: { id: FingerTab; label: string }[] = [
+    { id: 'index', label: 'Index' },
+    { id: 'middle', label: 'Bird' },
+    { id: 'ring', label: 'Ring' },
+    { id: 'pinky', label: 'Pinky' },
+    { id: 'thumb', label: 'Thumb' },
+    { id: 'all', label: 'All' },
+  ];
+
+  const fingerGroupEls: Partial<Record<Finger, HTMLElement>> = {};
+  const tabButtons: Record<string, HTMLButtonElement> = {};
+
+  let $menuLabel: HTMLElement | null = null;
+  let $menuReach: HTMLElement | null = null;
+
+  interface ToggleBox {
+    container: HTMLElement;
+    btn: HTMLButtonElement;
+    wrapper: HTMLElement;
+    range: HTMLInputElement;
+    num: HTMLElement;
+    isOpen: () => boolean;
+    open: () => void;
+    close: () => void;
+    update: (val: number, rangeLo: number, rangeHi: number) => void;
+  }
+
+  let toggleBoxes: ToggleBox[] = [];
+  let tglBoxMeta: ToggleBox | null = null;
+  let tglBoxFinger: ToggleBox | null = null;
+  let tglBoxGrip: ToggleBox | null = null;
+  let tglBoxTip: ToggleBox | null = null;
+
+  function createRotationToggleBox(
+    type: 'meta' | 'finger' | 'grip' | 'tip',
+    label: string
+  ): ToggleBox {
+    const container = el('div', { class: 'rot-tgl-box' });
+    const btn = el(
+      'button',
+      { class: 'rot-tgl-btn', title: `Click to open live slider for ${label}` },
+      `${label}: 0\xB0`
+    ) as HTMLButtonElement;
+
+    const nameSpan = el('span', { class: 'rot-tgl-name' }, label);
+    const range = el('input', { type: 'range', class: 'rot-tgl-range' }) as HTMLInputElement;
+    const num = el('span', { class: 'rot-tgl-num' }, '0\xB0');
+    const closeBtn = el('button', { class: 'rot-tgl-x', title: 'Close slider' }, '\xD7');
+
+    const wrapper = el('div', { class: 'rot-tgl-slider-wrapper', hidden: '' }, nameSpan, range, num, closeBtn);
+    container.append(btn, wrapper);
+
+    let openState = false;
+
+    const open = () => {
+      openState = true;
+      btn.hidden = true;
+      wrapper.hidden = false;
+      range.focus();
+    };
+
+    const close = () => {
+      openState = false;
+      wrapper.hidden = true;
+      btn.hidden = false;
+    };
+
+    btn.onclick = () => {
+      toggleBoxes.forEach((tb) => {
+        if (tb.container !== container) tb.close();
+      });
+      open();
+    };
+
+    closeBtn.onclick = () => close();
+
+    let userDragging = false;
+    range.onpointerdown = () => {
+      userDragging = true;
+    };
+    range.onpointerup = range.onpointercancel = () => {
+      userDragging = false;
+      commit();
+    };
+
+    range.oninput = () => {
+      const v = Number(range.value) || 0;
+      num.textContent = `${Math.round(v)}\xB0`;
+
+      const targets = activeTab === 'all' ? getActiveFingers(S.build) : [activeTab as Finger];
+      targets.forEach((f) => {
+        if (type === 'meta') {
+          const [lo, hi2] = rRange(f, S.expert, S.fullElasticity);
+          S.rot[f] = clamp(v, lo, hi2);
+        } else {
+          const jIdx = type === 'finger' ? 0 : type === 'grip' ? 1 : 2;
+          const [lo, hi2] = cRange(f, S.expert);
+          S.cj[f][jIdx] = clamp(v, lo, hi2);
+        }
+      });
+      draw();
+    };
+
+    const tb: ToggleBox = {
+      container,
+      btn,
+      wrapper,
+      range,
+      num,
+      isOpen: () => openState,
+      open,
+      close,
+      update: (val: number, rangeLo: number, rangeHi: number) => {
+        btn.textContent = `${label}: ${Math.round(val)}\xB0`;
+        range.min = String(rangeLo);
+        range.max = String(rangeHi);
+        if (!userDragging && document.activeElement !== range) {
+          range.value = String(val);
+          num.textContent = `${Math.round(val)}\xB0`;
+        }
+      },
+    };
+    toggleBoxes.push(tb);
+    return tb;
+  }
+
+  function updateTopHeaderAndToggles() {
+    const target = activeTab;
+    const active = getActiveFingers(S.build);
+
+    if (target === 'all') {
+      if ($menuLabel) $menuLabel.textContent = 'ALL FINGERS';
+      if ($menuReach) $menuReach.textContent = 'Reach: 5.0 - 8.0 pyxls';
+    } else {
+      const labelText = target === 'middle' ? 'BIRD' : target.toUpperCase();
+      if ($menuLabel) $menuLabel.textContent = labelText;
+      if ($menuReach) $menuReach.textContent = `Reach: ${reach(target, S.o)} pyxls`;
+    }
+
+    const targets = target === 'all' ? active : [target as Finger];
+    const firstTarget = targets[0] ?? 'index';
+
+    const avgRot = targets.reduce((acc, f) => acc + (S.rot[f] ?? 0), 0) / (targets.length || 1);
+    const avgJ0 = targets.reduce((acc, f) => acc + (S.cj[f]?.[0] ?? 0), 0) / (targets.length || 1);
+    const avgJ1 = targets.reduce((acc, f) => acc + (S.cj[f]?.[1] ?? 0), 0) / (targets.length || 1);
+    const avgJ2 = targets.reduce((acc, f) => acc + (S.cj[f]?.[2] ?? 0), 0) / (targets.length || 1);
+
+    const [rLo, rHi] = rRange(firstTarget, S.expert, S.fullElasticity);
+    const [cLo, cHi] = cRange(firstTarget, S.expert);
+
+    if (tglBoxMeta) tglBoxMeta.update(avgRot, rLo, rHi);
+    if (tglBoxFinger) tglBoxFinger.update(avgJ0, cLo, cHi);
+    if (tglBoxGrip) tglBoxGrip.update(avgJ1, cLo, cHi);
+    if (tglBoxTip) tglBoxTip.update(avgJ2, cLo, cHi);
+  }
+
+  function updateFingerTabs() {
+    for (const [id, b] of Object.entries(tabButtons)) {
+      b.classList.toggle('on', id === activeTab);
+    }
+    for (const d of FINGER_ORDER) {
+      const card = fingerGroupEls[d];
+      if (card) {
+        card.style.display = activeTab === 'all' || activeTab === d ? '' : 'none';
+      }
+    }
+    updateTopHeaderAndToggles();
+  }
+
   svg.onpointerdown = (e: PointerEvent) => {
     if (preview) return;
     inv = svg.getScreenCTM()?.inverse() ?? null;
@@ -544,6 +716,10 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
     }
 
     if (!drag) return;
+    if (drag.d && activeTab !== 'all') {
+      activeTab = drag.d as FingerTab;
+      updateFingerTabs();
+    }
     frozen = true;
     cancelAnimationFrame(anim);
     svg.setPointerCapture(e.pointerId);
@@ -1520,13 +1696,60 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
 
   const controlsContainer = $<HTMLDivElement>('#c');
   if (controlsContainer) {
-    for (const d of CONTROLS_FINGER_ORDER) {
+    controlsContainer.replaceChildren();
+
+    const menuHeader = el('div', { class: 'bottom-menu-header' });
+
+    const tabBar = el('div', { class: 'finger-tab-bar' });
+    FINGER_TABS.forEach((tab) => {
+      const b = el(
+        'button',
+        {
+          class: `ftab ${tab.id === 'all' ? 'all-tab' : ''} ${tab.id === activeTab ? 'on' : ''}`,
+          onclick: () => {
+            activeTab = tab.id;
+            updateFingerTabs();
+          },
+        },
+        tab.label
+      ) as HTMLButtonElement;
+      tabButtons[tab.id] = b;
+      tabBar.append(b);
+    });
+
+    $menuLabel = el('span', { class: 'menu-finger-label' }, 'INDEX');
+    $menuReach = el('span', { class: 'menu-finger-reach' }, 'Reach: 7.5 pyxls');
+    const labelReachBox = el('div', { class: 'menu-label-reach' }, $menuLabel, $menuReach);
+
+    tglBoxMeta = createRotationToggleBox('meta', 'Meta');
+    tglBoxFinger = createRotationToggleBox('finger', 'Finger');
+    tglBoxGrip = createRotationToggleBox('grip', 'Grip');
+    tglBoxTip = createRotationToggleBox('tip', 'Tip');
+
+    const togglesBox = el(
+      'div',
+      { class: 'toggles-group' },
+      el('span', { class: 'toggles-title' }, 'ROTATION TOGGLES:'),
+      tglBoxMeta.container,
+      tglBoxFinger.container,
+      tglBoxGrip.container,
+      tglBoxTip.container
+    );
+
+    const subBar = el('div', { class: 'menu-sub-bar' }, labelReachBox, togglesBox);
+    menuHeader.append(tabBar, subBar);
+
+    const cardsGrid = el('div', { class: 'finger-cards-grid' });
+    const CARD_ORDER: Finger[] = ['index', 'middle', 'ring', 'pinky', 'thumb'];
+
+    for (const d of CARD_ORDER) {
       const mid = d === 'middle';
       const thFinger = d === 'thumb';
-      const $reach = el('small', {}) as HTMLElement;
       const g = el('div', { class: 'grp' });
+      fingerGroupEls[d] = g;
+
       const set3 = (i: number, v: number) => (S.cj[d][i] = v);
-      g.append(el('h3', {}, mid ? 'Middle (Master Bird)' : d[0].toUpperCase() + d.slice(1), $reach));
+      g.append(el('h3', {}, mid ? 'Middle (Bird) Controls' : d[0].toUpperCase() + d.slice(1) + ' Controls'));
       if (!mid) {
         g.append(
           slider(
@@ -1574,17 +1797,22 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       );
       sync.push(() => {
         g.classList.toggle('off', !getActiveFingers(S.build).includes(d));
-        $reach.textContent = `Reach ${reach(d, S.o)} pyxls`;
       });
-      controlsContainer.append(g);
+      cardsGrid.append(g);
     }
 
+    sync.push(updateTopHeaderAndToggles);
+
     controlsContainer.append(
+      menuHeader,
+      cardsGrid,
       el('div', {
         id: 'rd',
         html: '<b>Gotz.Puppyt Hand Rig v2 \u2014 canonical rules &amp; reach.</b><br><b>Reach:</b> Middle 8 raw / 7 functional \xB7 Ring 7.5 / 6.5 \xB7 Index 7.5 / 6.5 \xB7 Pinky 7 / 6 \xB7 Thumb 5 / 4.5.<br><b>Proportions:</b> the middle finger sets the master 4:2:1:1 (metacarpal : proximal : middle : distal); each bone fits a 1-wide box, the distal leaves 12.5% empty each side (0.75 pyxl). 1 pyxl = 100 px.<br><b>Framerate Modes:</b> Brad 8 FPS \xB7 Lotte 12 FPS (Default) \xB7 Anime 15 FPS \xB7 Walt 24 FPS \xB7 Pure 60 FPS.',
       })
     );
+
+    updateFingerTabs();
   }
 
   // ----------------------------------------------------
