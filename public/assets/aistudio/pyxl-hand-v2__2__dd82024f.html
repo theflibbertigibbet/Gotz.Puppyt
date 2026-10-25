@@ -1,0 +1,1718 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pyxl Hand Rig v2</title>
+<style>
+:root{--bg:#120e18;--stage:#e2e2e8;--panel:#181322;--bd:#2c223c;--fg:#f4f0fa;--mut:#9e91b5;--acc:#a855f7;--accs:rgba(168,85,247,.16);--bone:#9d4edd;--fill:#120e1a;--buff:rgba(157,78,221,.45);--box:#adff2f;--grid:#c2c2cc;--axis:#9898a6;--wrist:#ef4444;--lime:#adff2f}
+[data-theme=light]{--bg:#f6f3fa;--stage:#e5e5eb;--panel:#fff;--bd:#d4c9e4;--fg:#191224;--mut:#6e6182;--acc:#8b25e0;--accs:rgba(139,37,224,.12);--bone:#8b25e0;--fill:#161120;--buff:rgba(110,97,130,.45);--box:#65a30d;--wrist:#dc2626;--lime:#65a30d}
+*{box-sizing:border-box}
+body{margin:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);color:var(--fg);font:13px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;user-select:none}
+header{height:48px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px;background:var(--panel);border-bottom:1px solid var(--bd)}
+header b{font-size:14px}header i{font:600 11px monospace;padding:2px 6px;border-radius:4px;background:var(--accs);color:var(--acc);font-style:normal}
+.sp{flex:1}.seg{display:flex;gap:2px;padding:2px;border:1px solid var(--bd);border-radius:6px;background:var(--bg)}
+button,select,input[type=text],textarea{font:inherit;font-size:12px;color:var(--fg);background:var(--bg);border:1px solid var(--bd);border-radius:5px;padding:5px 9px}
+button{cursor:pointer}button:hover:not(:disabled){border-color:var(--acc)}button:disabled{opacity:.35;cursor:not-allowed}
+button.on{background:var(--acc);border-color:var(--acc);color:#fff}.seg button{border:0;padding:3px 9px;background:none;color:var(--mut)}.seg button.on{color:#fff}
+#stage{position:relative;flex:none;height:66.667%;overflow:hidden;background:var(--stage)}
+#s{width:100%;height:100%;touch-action:none;cursor:grab}#s:active{cursor:grabbing}
+.bone{stroke:var(--bone);stroke-width:.04;fill:var(--fill)}.buff{stroke:var(--buff);stroke-width:.02;stroke-dasharray:.08 .08;fill:none}
+.box{stroke:var(--box);stroke-width:.035;stroke-dasharray:.1 .1;fill:none}.child-joint{fill:#8b25e0;stroke:#7c3aed;stroke-width:.008}.parent-joint{stroke:#166534;stroke-width:.005}
+.bend path{fill:none;stroke-width:.035;stroke-linecap:round;pointer-events:none}.bend .head{fill:currentColor;stroke:none}.bend.flex{color:#7ccd00;stroke:#7ccd00}.bend.ext{color:#ef4444;stroke:#ef4444}
+.wrist-sock{stroke:var(--wrist);stroke-width:.04;fill:var(--fill)}.wrist-plug{fill:var(--wrist)}
+.g-unit{stroke:var(--grid);stroke-width:.018;opacity:.7}.axis{stroke:var(--axis);stroke-width:.035;opacity:.9}
+.hit{fill:transparent;stroke:transparent;pointer-events:all;cursor:grab}.hit:hover{stroke:var(--acc);stroke-width:.03;stroke-dasharray:.08 .08}
+.tb{position:absolute;top:12px;z-index:20;display:flex;flex-direction:column;gap:6px;padding:6px;border-radius:8px;background:color-mix(in srgb,var(--panel) 90%,transparent);backdrop-filter:blur(8px);border:1px solid var(--bd);box-shadow:0 6px 20px #0004}
+.tb.l{left:12px}.tb.r{right:12px}.tb button{width:36px;height:36px;padding:0;font-size:15px}.tb hr{width:20px;border:0;border-top:1px solid var(--bd);margin:2px auto}
+.tb .bld{font-size:9px;line-height:1.1}.tb .bld b{display:block;font-size:12px;color:var(--lime)}
+.fly{position:absolute;top:12px;z-index:25;width:290px;max-height:calc(100% - 24px);overflow:auto;padding:12px;border-radius:8px;background:var(--panel);border:1px solid var(--bd);box-shadow:0 10px 30px #0006;display:flex;flex-direction:column;gap:10px}
+.fly.l{left:66px}.fly.r{right:66px}.fly[hidden],#toast[hidden],#help[hidden]{display:none}
+.fly h2{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--acc);display:flex;justify-content:space-between;align-items:center}
+.pl{display:grid;grid-template-columns:1fr 1fr;gap:4px;max-height:200px;overflow:auto}.pose{text-align:left;font-size:11px;padding:5px 7px}.pose.on{background:var(--accs);border-color:var(--acc)}.pose.me.on{border-color:var(--lime)}
+.r2{display:flex;gap:6px;align-items:center}.r2>*{flex:1;min-width:0}.col{display:flex;flex-direction:column;gap:6px}
+#toast{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:40;padding:6px 14px;border-radius:99px;background:#059669;color:#fff;font-size:12px;box-shadow:0 6px 20px #0005}
+#snaps{position:absolute;right:76px;bottom:12px;z-index:30;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
+.snap{pointer-events:auto;display:flex;gap:8px;align-items:center;padding:6px 8px;border-radius:8px;background:var(--panel);border:1px solid var(--bd);box-shadow:0 6px 20px #0005;font-size:11px;min-width:0}
+.snap img{width:60px;height:60px;object-fit:contain;border-radius:4px;background:repeating-conic-gradient(#ccc 0 25%,#eee 0 50%) 0 0/12px 12px;user-select:auto;-webkit-user-select:auto;-webkit-touch-callout:default}
+.snap .ico{font-size:30px;width:60px;text-align:center}.snap .col{gap:3px}.snap small{color:var(--mut);max-width:170px}.snap b{font-size:12px}
+.snap a{color:var(--fg);text-decoration:none;font-size:12px;padding:5px 9px;border:1px solid var(--bd);border-radius:5px;background:var(--bg);text-align:center}.snap a:hover{border-color:var(--acc)}
+#info{position:absolute;left:12px;bottom:12px;z-index:10;padding:6px 10px;border-radius:6px;background:color-mix(in srgb,var(--panel) 80%,transparent);border:1px solid var(--bd);font:11px monospace;color:var(--mut);pointer-events:none}
+#split{flex:none;height:14px;cursor:ns-resize;background:var(--bd);display:flex;align-items:center;justify-content:center;z-index:20}#split:hover{background:var(--acc)}#split:after{content:"";width:40px;height:4px;border-radius:2px;background:var(--mut);opacity:.7}
+#c{flex:1;overflow:auto;padding:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;align-content:start;background:var(--panel)}
+.grp{display:flex;flex-direction:column;gap:9px;padding:12px;border-radius:8px;background:var(--bg);border:1px solid var(--bd);transition:opacity .15s}.grp.off{opacity:.4}
+.grp h3{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--acc);display:flex;justify-content:space-between;border-bottom:1px solid var(--bd);padding-bottom:6px}.grp h3 small{color:var(--mut);text-transform:none;letter-spacing:0;font-weight:400}
+.row{display:flex;align-items:center;gap:7px;font-size:12px}.row label{flex:1.2;white-space:nowrap}.row input[type=range]{flex:2;min-width:0;accent-color:var(--acc)}
+.row input[type=number]{width:54px;padding:2px 4px;text-align:right}.row .u{width:12px;color:var(--mut)}
+.chk{display:flex;gap:6px;align-items:center;font-size:12px}.chk small{color:var(--mut)}
+details{border:1px solid var(--bd);border-radius:5px;padding:6px 8px}summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--mut)}details .col{margin-top:8px}
+details.sec{padding:0;overflow:hidden}.sec summary{display:flex;align-items:center;gap:6px;padding:8px 10px;color:var(--fg);list-style:none}.sec summary::-webkit-details-marker{display:none}
+.sec[open] summary{color:var(--acc)}.sec .chev{margin-left:auto;font-size:10px;font-style:normal;color:var(--mut);transition:transform .2s}.sec[open] .chev{transform:rotate(180deg)}
+.sec>.col{margin:0;padding:8px 10px 10px;border-top:1px solid var(--bd)}.bdg{padding:0 6px;border-radius:99px;background:var(--accs);color:var(--acc);font:10px monospace}.bdg[hidden]{display:none}
+.film{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}.film button{flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px}.film button.on{border-color:var(--lime);background:var(--accs)}
+.film svg{width:58px;height:66px;border-radius:4px;background:var(--stage);pointer-events:none}.film span{font:600 10px monospace}.film small{font:9px monospace;color:var(--mut)}
+textarea{width:100%;height:64px;font:11px monospace;resize:vertical}
+#rd{grid-column:1/-1;padding:12px;border-radius:8px;background:var(--bg);border:1px solid var(--bd);font-size:11px;line-height:1.6;color:var(--mut)}#rd b{color:var(--fg)}
+.bar{height:6px;border-radius:3px;background:var(--bd);overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--acc)}
+#help{position:fixed;inset:0;z-index:100;background:#000a;display:flex;align-items:center;justify-content:center}#help div{width:min(480px,92vw);padding:20px;border-radius:10px;background:var(--panel);border:1px solid var(--bd);line-height:1.55}#help h3{margin:0 0 8px;color:var(--acc)}#help ul{margin:4px 0 10px;padding-left:18px}
+</style></head><body>
+<header><b>Pyxl Hand Rig</b><i>v2</i><span class="seg" id="builds"></span><span class="seg"><button class="u" id="hu" title="Undo (Ctrl+Z)">↶</button><button class="r" id="hr" title="Redo (Ctrl+Y)">↷</button></span><span class="sp"></span><button id="hq" title="Reference">?</button><button id="th" title="Toggle dark / light"></button></header>
+<div id="stage">
+<svg id="s" preserveAspectRatio="xMidYMid meet"><defs><radialGradient id="parentJointGrad"><stop offset="0" stop-color="#ffff33"/><stop offset=".35" stop-color="#adff2f"/><stop offset=".7" stop-color="#65a30d"/><stop offset="1" stop-color="#15803d"/></radialGradient><filter id="filmBlur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation=".0055"/></filter></defs><g id="grid"></g><g id="hand" filter="url(#filmBlur)"></g></svg>
+<div id="toast" hidden></div><div id="info"></div>
+</div>
+<div id="split" title="Drag to resize · double-click to reset"></div>
+<div id="c"></div>
+<div id="help" hidden><div><h3>Pyxl Hand Rig v2</h3><b>Drag on the canvas</b><ul><li><b>Red wrist hub:</b> rotate the whole hand.</li><li><b>Finger root / base:</b> swing a finger about the wrist.</li><li><b>Bone shaft or joint pin:</b> 14-pass CCD inverse kinematics toward the pointer.</li></ul><b>Builds</b><ul><li><b>Full</b> 5 digits · <b>Claw</b> index + thumb · <b>Trident</b> bird, ring, thumb · <b>Mickey's</b> no pinky.</li></ul><b>Space</b> saves the current pose as a numbered 1024×1024 PNG. Undo / redo: Ctrl+Z, Ctrl+Y / Cmd+Shift+Z. Poses live in this browser's localStorage and as pasteable JSON.<p><button id="hx" class="on">Got it</button></p></div></div>
+<script>(() => {
+  // src/core.ts
+  var FINGER_ORDER = ["index", "middle", "ring", "pinky", "thumb"];
+  var CONTROLS_FINGER_ORDER = ["index", "ring", "pinky", "thumb", "middle"];
+  var BONES = {
+    middle: [4, 2, 1, 1],
+    ring: [3.75, 1.875, 0.9375, 0.9375],
+    index: [3.75, 1.875, 0.9375, 0.9375],
+    // grown half a fingertip (was 3.5 : 1.75 : 0.875 : 0.875)
+    pinky: [3.5, 1.75, 0.875, 0.875],
+    // grown half a fingertip (was 3.25 : 1.625 : 0.8125 : 0.8125)
+    thumb: [2, 1, 1, 1]
+  };
+  var SUM = {
+    middle: 8,
+    ring: 7.5,
+    index: 7.5,
+    pinky: 7,
+    thumb: 5
+  };
+  var KN = {
+    middle: 1,
+    ring: 1,
+    index: 1,
+    pinky: 1,
+    thumb: 0.5
+  };
+  var LIM = {
+    thumb: -120,
+    index: -30,
+    middle: 0,
+    ring: 30,
+    pinky: 90
+  };
+  var BEND = { thumb: -1, index: 1, middle: 1, ring: 1, pinky: 1 };
+  var R = Math.PI / 180;
+  var bendTurn = (d, cj) => -BEND[d] * cj;
+  function norm(a) {
+    return (a + 540) % 360 - 180;
+  }
+  function clamp(v, lo, hi2) {
+    return Math.min(hi2, Math.max(lo, v));
+  }
+  function cRange(d, expert) {
+    if (expert) return [-90, 90];
+    return d === "thumb" ? [-20, 80] : [-20, 90];
+  }
+  function rRange(d, expert) {
+    if (expert) return [-90, 90];
+    return d === "thumb" ? [-60, 60] : [-45, 45];
+  }
+  function calcA(d, state) {
+    const extra = d === "thumb" ? state.thumb : d === "middle" ? 0 : state.fs[d] ?? 0;
+    const effectiveSplay = clamp(state.splay + extra, -100, 100);
+    return LIM[d] * effectiveSplay / 100 + state.tilt + (state.rot[d] ?? 0);
+  }
+  function wid(d, wscale = false) {
+    const baseW = 0.75;
+    const scale = d === "thumb" ? 0.9 : SUM[d] / SUM.middle;
+    const standardW = baseW * scale;
+    if (wscale && d !== "thumb") {
+      return standardW * ((SUM[d] - KN[d]) / 7);
+    }
+    return standardW;
+  }
+  function getBoneBox(d, i) {
+    const bones = BONES[d];
+    const len = bones[i];
+    const scale = d === "thumb" ? 1 : SUM[d] / SUM.middle;
+    const boxW = 1 * scale;
+    const emptyMargin = 0.125 * boxW;
+    return {
+      boxW,
+      boxH: len,
+      emptyMargin
+    };
+  }
+  function reach(d, o) {
+    const knOvl = o > 0 ? KN[d] : 0;
+    return SUM[d] - knOvl;
+  }
+  function defaultState() {
+    return {
+      expert: false,
+      splay: 30,
+      thumb: 10,
+      fs: {
+        index: 0,
+        ring: 0,
+        pinky: 0
+      },
+      wrist: 0,
+      tilt: 0,
+      o: 0.5,
+      wscale: false,
+      boxes: false,
+      skin: true,
+      cj: {
+        thumb: [0, 0, 0],
+        index: [0, 0, 0],
+        middle: [0, 0, 0],
+        ring: [0, 0, 0],
+        pinky: [0, 0, 0]
+      },
+      rot: {
+        thumb: 0,
+        index: 0,
+        middle: 0,
+        ring: 0,
+        pinky: 0
+      },
+      build: "standard"
+    };
+  }
+  function cleanPose(raw) {
+    const res = {};
+    if (raw.splay !== void 0) res.splay = clamp(Number(raw.splay) || 0, -100, 100);
+    if (raw.thumb !== void 0) res.thumb = clamp(Number(raw.thumb) || 0, -100, 100);
+    if (raw.wrist !== void 0) res.wrist = norm(Number(raw.wrist) || 0);
+    if (raw.tilt !== void 0) res.tilt = clamp(Number(raw.tilt) || 0, -30, 30);
+    if (raw.o !== void 0) res.o = Number(raw.o) > 0 ? 0.5 : 0;
+    if (raw.wscale !== void 0) res.wscale = Boolean(raw.wscale);
+    if (raw.boxes !== void 0) res.boxes = Boolean(raw.boxes);
+    if (raw.skin !== void 0) res.skin = Boolean(raw.skin);
+    if (raw.expert !== void 0) res.expert = Boolean(raw.expert);
+    if (raw.build !== void 0) res.build = raw.build;
+    if (raw.fs) {
+      res.fs = {
+        index: clamp(Number(raw.fs.index) || 0, -100, 100),
+        ring: clamp(Number(raw.fs.ring) || 0, -100, 100),
+        pinky: clamp(Number(raw.fs.pinky) || 0, -100, 100)
+      };
+    }
+    if (raw.rot) {
+      res.rot = {
+        thumb: Number(raw.rot.thumb) || 0,
+        index: Number(raw.rot.index) || 0,
+        middle: Number(raw.rot.middle) || 0,
+        ring: Number(raw.rot.ring) || 0,
+        pinky: Number(raw.rot.pinky) || 0
+      };
+    }
+    if (raw.cj) {
+      res.cj = {
+        thumb: [Number(raw.cj.thumb?.[0]) || 0, Number(raw.cj.thumb?.[1]) || 0, Number(raw.cj.thumb?.[2]) || 0],
+        index: [Number(raw.cj.index?.[0]) || 0, Number(raw.cj.index?.[1]) || 0, Number(raw.cj.index?.[2]) || 0],
+        middle: [Number(raw.cj.middle?.[0]) || 0, Number(raw.cj.middle?.[1]) || 0, Number(raw.cj.middle?.[2]) || 0],
+        ring: [Number(raw.cj.ring?.[0]) || 0, Number(raw.cj.ring?.[1]) || 0, Number(raw.cj.ring?.[2]) || 0],
+        pinky: [Number(raw.cj.pinky?.[0]) || 0, Number(raw.cj.pinky?.[1]) || 0, Number(raw.cj.pinky?.[2]) || 0]
+      };
+    }
+    return res;
+  }
+  function clampStateToLimits(st) {
+    const expert = st.expert;
+    const splay = clamp(st.splay, -100, 100);
+    const thumb = clamp(st.thumb, -100, 100);
+    const wrist = norm(st.wrist);
+    const tilt = clamp(st.tilt, -30, 30);
+    const fs = {
+      index: clamp(st.fs.index, -100, 100),
+      ring: clamp(st.fs.ring, -100, 100),
+      pinky: clamp(st.fs.pinky, -100, 100)
+    };
+    const rot = { ...st.rot };
+    const cj = {
+      thumb: [...st.cj.thumb],
+      index: [...st.cj.index],
+      middle: [...st.cj.middle],
+      ring: [...st.cj.ring],
+      pinky: [...st.cj.pinky]
+    };
+    for (const d of FINGER_ORDER) {
+      const [rLo, rHi] = rRange(d, expert);
+      rot[d] = clamp(rot[d], rLo, rHi);
+      const [cLo, cHi] = cRange(d, expert);
+      cj[d] = [
+        clamp(cj[d][0], cLo, cHi),
+        clamp(cj[d][1], cLo, cHi),
+        clamp(cj[d][2], cLo, cHi)
+      ];
+    }
+    return {
+      ...st,
+      splay,
+      thumb,
+      wrist,
+      tilt,
+      fs,
+      rot,
+      cj
+    };
+  }
+  function jointPos(d, st) {
+    const bones = BONES[d];
+    const n = bones.length;
+    const knOvl = st.o > 0 ? KN[d] : 0;
+    let phi = st.wrist + calcA(d, st);
+    let x = 0;
+    let y = 0;
+    const pos = [];
+    for (let i = 0; i < n - 1; i++) {
+      const a = i === 1 ? -knOvl / 2 : 0;
+      const J = i === 0 ? knOvl : 0;
+      const dist = a + bones[i] - J / 2;
+      x += dist * Math.sin(phi * R);
+      y -= dist * Math.cos(phi * R);
+      pos.push({ x, y, phi });
+      phi += bendTurn(d, st.cj[d]?.[i] ?? 0);
+    }
+    const lastBone = bones[n - 1];
+    const tipX = x + lastBone * Math.sin(phi * R);
+    const tipY = y - lastBone * Math.cos(phi * R);
+    pos.push({ x: tipX, y: tipY, phi });
+    return pos;
+  }
+  function runIk(d, k, tx, ty, st) {
+    const nextSt = {
+      ...st,
+      rot: { ...st.rot },
+      cj: {
+        ...st.cj,
+        [d]: [...st.cj[d]]
+      }
+    };
+    const bones = BONES[d];
+    const n = bones.length;
+    const effIndex = Math.min(k + 1, n - 1);
+    const [cLo, cHi] = cRange(d, nextSt.expert);
+    const [rLo, rHi] = rRange(d, nextSt.expert);
+    for (let iter = 0; iter < 14; iter++) {
+      for (let j = k; j >= -1; j--) {
+        const positions = jointPos(d, nextSt);
+        const eff = positions[effIndex];
+        let jx = 0;
+        let jy = 0;
+        if (j >= 0) {
+          jx = positions[j].x;
+          jy = positions[j].y;
+        }
+        const vEx = eff.x - jx;
+        const vEy = eff.y - jy;
+        const vTx = tx - jx;
+        const vTy = ty - jy;
+        const cross = vEx * vTy - vEy * vTx;
+        const dot = vEx * vTx + vEy * vTy;
+        if (Math.abs(dot) < 1e-6 && Math.abs(cross) < 1e-6) continue;
+        const dl = Math.atan2(cross, dot) / R;
+        if (j === -1) {
+          nextSt.rot[d] = clamp(nextSt.rot[d] + dl, rLo, rHi);
+        } else if (j >= 0 && j < 3) {
+          nextSt.cj[d][j] = clamp(nextSt.cj[d][j] - BEND[d] * dl, cLo, cHi);
+        }
+      }
+    }
+    nextSt.rot[d] = Math.round(nextSt.rot[d]);
+    nextSt.cj[d][0] = Math.round(nextSt.cj[d][0]);
+    nextSt.cj[d][1] = Math.round(nextSt.cj[d][1]);
+    nextSt.cj[d][2] = Math.round(nextSt.cj[d][2]);
+    return nextSt;
+  }
+  function getActiveFingers(build = "standard") {
+    switch (build) {
+      case "claw":
+        return ["index", "thumb"];
+      case "trident":
+        return ["middle", "ring", "thumb"];
+      case "mickey":
+        return ["index", "middle", "ring", "thumb"];
+      case "standard":
+      default:
+        return ["index", "middle", "ring", "pinky", "thumb"];
+    }
+  }
+  var PRESET_POSES = {
+    "Neutral flat (default)": {
+      splay: 30,
+      thumb: 10,
+      wrist: 0,
+      tilt: 0,
+      fs: { index: 0, ring: 0, pinky: 0 },
+      rot: { thumb: 0, index: 0, middle: 0, ring: 0, pinky: 0 },
+      cj: {
+        thumb: [0, 0, 0],
+        index: [0, 0, 0],
+        middle: [0, 0, 0],
+        ring: [0, 0, 0],
+        pinky: [0, 0, 0]
+      }
+    },
+    "Relaxed Natural": {
+      splay: 25,
+      thumb: 15,
+      wrist: 0,
+      tilt: 0,
+      fs: { index: -5, ring: 5, pinky: 12 },
+      rot: { thumb: -10, index: 2, middle: 0, ring: -3, pinky: -8 },
+      cj: {
+        thumb: [22, 18, 14],
+        index: [25, 20, 15],
+        middle: [28, 22, 18],
+        ring: [32, 25, 20],
+        pinky: [35, 28, 22]
+      }
+    },
+    "Fist": {
+      splay: 12,
+      thumb: -15,
+      wrist: 0,
+      tilt: 0,
+      fs: { index: 0, ring: 0, pinky: 0 },
+      rot: { thumb: -35, index: -5, middle: 0, ring: 4, pinky: 8 },
+      cj: {
+        thumb: [45, 55, 45],
+        index: [85, 88, 85],
+        middle: [88, 90, 88],
+        ring: [88, 90, 88],
+        pinky: [85, 88, 85]
+      }
+    },
+    "Pointing": {
+      splay: 18,
+      thumb: -10,
+      wrist: 0,
+      tilt: -5,
+      fs: { index: 0, ring: 0, pinky: 0 },
+      rot: { thumb: -25, index: 0, middle: 4, ring: 6, pinky: 10 },
+      cj: {
+        thumb: [40, 45, 30],
+        index: [0, 0, 0],
+        middle: [85, 88, 85],
+        ring: [85, 88, 85],
+        pinky: [85, 88, 85]
+      }
+    },
+    "Peace / Victory": {
+      splay: 35,
+      thumb: -15,
+      wrist: 0,
+      tilt: 0,
+      fs: { index: -15, ring: 0, pinky: 0 },
+      rot: { thumb: -30, index: -12, middle: 10, ring: 0, pinky: 5 },
+      cj: {
+        thumb: [45, 55, 35],
+        index: [0, 0, 0],
+        middle: [0, 0, 0],
+        ring: [85, 88, 85],
+        pinky: [85, 88, 85]
+      }
+    },
+    "Thumbs Up": {
+      splay: 15,
+      thumb: 35,
+      wrist: -90,
+      tilt: 0,
+      fs: { index: 0, ring: 0, pinky: 0 },
+      rot: { thumb: 20, index: 0, middle: 0, ring: 0, pinky: 0 },
+      cj: {
+        thumb: [0, 0, 0],
+        index: [85, 88, 85],
+        middle: [88, 90, 88],
+        ring: [88, 90, 88],
+        pinky: [85, 88, 85]
+      }
+    },
+    "OK Sign": {
+      splay: 32,
+      thumb: 0,
+      wrist: 0,
+      tilt: 0,
+      fs: { index: -10, ring: 8, pinky: 18 },
+      rot: { thumb: -15, index: -10, middle: 5, ring: 12, pinky: 18 },
+      cj: {
+        thumb: [50, 40, 30],
+        index: [55, 50, 30],
+        middle: [0, 0, 0],
+        ring: [5, 5, 0],
+        pinky: [10, 10, 5]
+      }
+    },
+    "Rock / Horns": {
+      splay: 35,
+      thumb: -10,
+      wrist: 0,
+      tilt: 0,
+      fs: { index: -15, ring: 0, pinky: 20 },
+      rot: { thumb: -25, index: -10, middle: 0, ring: 0, pinky: 15 },
+      cj: {
+        thumb: [45, 50, 35],
+        index: [0, 0, 0],
+        middle: [88, 90, 88],
+        ring: [88, 90, 88],
+        pinky: [0, 0, 0]
+      }
+    },
+    "Shaka / Hang Loose": {
+      splay: 50,
+      thumb: 40,
+      wrist: 0,
+      tilt: 0,
+      fs: { index: 0, ring: 0, pinky: 35 },
+      rot: { thumb: 25, index: 0, middle: 0, ring: 0, pinky: 20 },
+      cj: {
+        thumb: [0, 0, 0],
+        index: [88, 90, 88],
+        middle: [88, 90, 88],
+        ring: [88, 90, 88],
+        pinky: [0, 0, 0]
+      }
+    },
+    "Pinch / Grasp": {
+      splay: 20,
+      thumb: -5,
+      wrist: 0,
+      tilt: -5,
+      fs: { index: -5, ring: 5, pinky: 10 },
+      rot: { thumb: -20, index: -5, middle: 10, ring: 15, pinky: 20 },
+      cj: {
+        thumb: [35, 45, 30],
+        index: [40, 50, 35],
+        middle: [70, 75, 70],
+        ring: [80, 85, 80],
+        pinky: [85, 88, 85]
+      }
+    },
+    "Open Splay (Fan)": {
+      splay: 75,
+      thumb: 40,
+      wrist: 0,
+      tilt: 0,
+      fs: { index: 20, ring: 20, pinky: 30 },
+      rot: { thumb: 15, index: -10, middle: 0, ring: 10, pinky: 20 },
+      cj: {
+        thumb: [-10, -5, 0],
+        index: [-10, -5, 0],
+        middle: [-10, -5, 0],
+        ring: [-10, -5, 0],
+        pinky: [-10, -5, 0]
+      }
+    }
+  };
+
+  // src/art.ts
+  var ART_ORDER = ["metacarpal", "proximal", "middle", "distal"];
+  var ART = {
+    metacarpal: [58e-4, -1.0068, 86e-4, -1.0064, 69e-4, -1.0054, 0.0111, -1.0043, 0.0153, -1.0033, 0.0254, -1.0023, 0.031, -1.0006, 0.0366, -0.999, 0.0384, -0.9986, 0.0448, -0.9944, 0.0512, -0.9903, 0.0638, -0.9806, 0.0694, -0.9759, 0.0749, -0.9712, 0.0756, -0.9697, 0.0781, -0.966, 0.0806, -0.9623, 0.0823, -0.9588, 0.0842, -0.9536, 0.0861, -0.9485, 0.0884, -0.9409, 0.0895, -0.9351, 0.0906, -0.9293, 0.0909, -0.924, 0.0909, -0.919, 0.0908, -0.9141, 0.0902, -0.9091, 0.0892, -0.9054, 0.0883, -0.9017, 0.086, -0.8995, 0.0852, -0.8968, 0.0844, -0.8941, 0.0856, -0.8935, 0.0844, -0.8894, 0.0833, -0.8852, 0.0813, -0.8785, 0.0783, -0.8721, 0.0753, -0.8657, 0.0707, -0.8568, 0.0666, -0.8511, 0.0625, -0.8453, 0.0565, -0.841, 0.0536, -0.8375, 0.0507, -0.834, 0.0502, -0.8319, 0.0494, -0.83, 0.0486, -0.8282, 0.0483, -0.8364, 0.0488, -0.8263, 0.0494, -0.8162, 0.0519, -0.8088, 0.0525, -0.7695, 0.0531, -0.7301, 0.0529, -0.6251, 0.0525, -0.5902, 0.0521, -0.5554, 0.0505, -0.5684, 0.0501, -0.5606, 0.0497, -0.5527, 0.0497, -0.5478, 0.0501, -0.5433, 0.0506, -0.5387, 0.0501, -0.5385, 0.0527, -0.5334, 0.0554, -0.5282, 0.0619, -0.5208, 0.0659, -0.5124, 0.07, -0.5039, 0.074, -0.4922, 0.0769, -0.4827, 0.0798, -0.4732, 0.0819, -0.4625, 0.0832, -0.4555, 0.0846, -0.4485, 0.0838, -0.4458, 0.0849, -0.4407, 0.0859, -0.4355, 0.089, -0.4347, 0.0896, -0.4246, 0.0901, -0.4145, 0.0889, -0.3885, 0.0883, -0.3801, 0.0877, -0.3717, 0.087, -0.3791, 0.086, -0.3739, 0.085, -0.3688, 0.0823, -0.3605, 0.0823, -0.3492, 0.0823, -0.3379, 0.0847, -0.3177, 0.0861, -0.3059, 0.0875, -0.2942, 0.0902, -0.2993, 0.0908, -0.2787, 0.0914, -0.2581, 0.0901, -0.1994, 0.0895, -0.1823, 0.0889, -0.1652, 0.0881, -0.1844, 0.0873, -0.1761, 0.0864, -0.1679, 0.0854, -0.1411, 0.0846, -0.1329, 0.0837, -0.1246, 0.0831, -0.1319, 0.0823, -0.1267, 0.0815, -0.1215, 0.0807, -0.108, 0.0795, -0.102, 0.0784, -0.096, 0.0764, -0.0956, 0.0757, -0.0909, 0.0749, -0.0861, 0.0767, -0.0818, 0.0748, -0.0735, 0.0729, -0.0653, 0.0668, -0.0484, 0.0643, -0.0414, 0.0618, -0.0344, 0.0617, -0.0346, 0.0598, -0.0315, 0.058, -0.0284, 0.0582, -0.0272, 0.0532, -0.0229, 0.0481, -0.0185, 0.0345, -95e-4, 0.0296, -56e-4, 0.0247, -16e-4, 0.0271, -14e-4, 0.0238, 6e-4, 0.0206, 27e-4, 0.0158, 58e-4, 0.0102, 68e-4, 45e-4, 78e-4, -45e-4, 78e-4, -0.0102, 68e-4, -0.0158, 58e-4, -0.0206, 27e-4, -0.0238, 6e-4, -0.0271, -14e-4, -0.0247, -16e-4, -0.0296, -56e-4, -0.0345, -95e-4, -0.0481, -0.0185, -0.0532, -0.0229, -0.0582, -0.0272, -0.058, -0.0284, -0.0598, -0.0315, -0.0617, -0.0346, -0.0618, -0.0344, -0.0643, -0.0414, -0.0668, -0.0484, -0.0729, -0.0653, -0.0748, -0.0735, -0.0767, -0.0818, -0.0749, -0.0861, -0.0757, -0.0909, -0.0764, -0.0956, -0.0784, -0.096, -0.0795, -0.102, -0.0807, -0.108, -0.0815, -0.1215, -0.0823, -0.1267, -0.0831, -0.1319, -0.0837, -0.1246, -0.0846, -0.1329, -0.0854, -0.1411, -0.0864, -0.1679, -0.0873, -0.1761, -0.0881, -0.1844, -0.0889, -0.1652, -0.0895, -0.1823, -0.0901, -0.1994, -0.0914, -0.2581, -0.0908, -0.2787, -0.0902, -0.2993, -0.0875, -0.2942, -0.0861, -0.3059, -0.0847, -0.3177, -0.0823, -0.3379, -0.0823, -0.3492, -0.0823, -0.3605, -0.085, -0.3688, -0.086, -0.3739, -0.087, -0.3791, -0.0877, -0.3717, -0.0883, -0.3801, -0.0889, -0.3885, -0.0901, -0.4145, -0.0896, -0.4246, -0.089, -0.4347, -0.0859, -0.4355, -0.0849, -0.4407, -0.0838, -0.4458, -0.0846, -0.4485, -0.0832, -0.4555, -0.0819, -0.4625, -0.0798, -0.4732, -0.0769, -0.4827, -0.074, -0.4922, -0.07, -0.5039, -0.0659, -0.5124, -0.0619, -0.5208, -0.0554, -0.5282, -0.0527, -0.5334, -0.0501, -0.5385, -0.0506, -0.5387, -0.0501, -0.5433, -0.0497, -0.5478, -0.0497, -0.5527, -0.0501, -0.5606, -0.0505, -0.5684, -0.0521, -0.5554, -0.0525, -0.5902, -0.0529, -0.6251, -0.0531, -0.7301, -0.0525, -0.7695, -0.0519, -0.8088, -0.0494, -0.8162, -0.0488, -0.8263, -0.0483, -0.8364, -0.0486, -0.8282, -0.0494, -0.83, -0.0502, -0.8319, -0.0507, -0.834, -0.0536, -0.8375, -0.0565, -0.841, -0.0625, -0.8453, -0.0666, -0.8511, -0.0707, -0.8568, -0.0753, -0.8657, -0.0783, -0.8721, -0.0813, -0.8785, -0.0833, -0.8852, -0.0844, -0.8894, -0.0856, -0.8935, -0.0844, -0.8941, -0.0852, -0.8968, -0.086, -0.8995, -0.0883, -0.9017, -0.0892, -0.9054, -0.0902, -0.9091, -0.0908, -0.9141, -0.0909, -0.919, -0.0909, -0.924, -0.0906, -0.9293, -0.0895, -0.9351, -0.0884, -0.9409, -0.0861, -0.9485, -0.0842, -0.9536, -0.0823, -0.9588, -0.0806, -0.9623, -0.0781, -0.966, -0.0756, -0.9697, -0.0749, -0.9712, -0.0694, -0.9759, -0.0638, -0.9806, -0.0512, -0.9903, -0.0448, -0.9944, -0.0384, -0.9986, -0.0366, -0.999, -0.031, -1.0006, -0.0254, -1.0023, -0.0153, -1.0033, -0.0111, -1.0043, -69e-4, -1.0054, -86e-4, -1.0064, -58e-4, -1.0068, -3e-3, -1.0072, 3e-3, -1.0072, 58e-4, -1.0068],
+    proximal: [0.0144, -1.0126, 0.0349, -1.0079, 0.0881, -0.9916, 0.1083, -0.9846, 0.1284, -0.9776, 0.1276, -0.9757, 0.1354, -0.9706, 0.1432, -0.9655, 0.1497, -0.9594, 0.155, -0.9538, 0.1602, -0.9482, 0.1636, -0.9435, 0.1671, -0.937, 0.1705, -0.9304, 0.1737, -0.9225, 0.1757, -0.9146, 0.1778, -0.9066, 0.179, -0.8968, 0.1792, -0.8894, 0.1794, -0.8819, 0.1815, -0.8819, 0.1767, -0.8697, 0.172, -0.8576, 0.165, -0.8366, 0.1507, -0.8165, 0.1364, -0.7965, 0.1001, -0.7726, 0.0911, -0.7493, 0.082, -0.726, 0.0957, -0.7288, 0.0966, -0.6765, 0.0976, -0.6242, 0.0981, -0.4972, 0.0966, -0.4356, 0.0951, -0.3739, 0.0885, -0.331, 0.0876, -0.3067, 0.0867, -0.2824, 0.0838, -0.3002, 0.0912, -0.2899, 0.0986, -0.2796, 0.1222, -0.2572, 0.1321, -0.2451, 0.142, -0.233, 0.1458, -0.2255, 0.1506, -0.2171, 0.1555, -0.2087, 0.1565, -0.2073, 0.1612, -0.1947, 0.1659, -0.1821, 0.1765, -0.1578, 0.179, -0.1415, 0.1815, -0.1251, 0.1783, -0.1092, 0.1762, -0.0966, 0.1741, -0.084, 0.1722, -0.0775, 0.1665, -0.0658, 0.1609, -0.0542, 0.1526, -0.0373, 0.1424, -0.0266, 0.1321, -0.0159, 0.1212, -84e-4, 0.105, -14e-4, 0.0887, 56e-4, 0.0699, 0.0126, 0.0449, 0.0154, 0.0199, 0.0182, -0.0199, 0.0182, -0.0449, 0.0154, -0.0699, 0.0126, -0.0887, 56e-4, -0.105, -14e-4, -0.1212, -84e-4, -0.1321, -0.0159, -0.1424, -0.0266, -0.1526, -0.0373, -0.1609, -0.0542, -0.1665, -0.0658, -0.1722, -0.0775, -0.1741, -0.084, -0.1762, -0.0966, -0.1783, -0.1092, -0.1815, -0.1251, -0.179, -0.1415, -0.1765, -0.1578, -0.1659, -0.1821, -0.1612, -0.1947, -0.1565, -0.2073, -0.1555, -0.2087, -0.1506, -0.2171, -0.1458, -0.2255, -0.142, -0.233, -0.1321, -0.2451, -0.1222, -0.2572, -0.0986, -0.2796, -0.0912, -0.2899, -0.0838, -0.3002, -0.0867, -0.2824, -0.0876, -0.3067, -0.0885, -0.331, -0.0951, -0.3739, -0.0966, -0.4356, -0.0981, -0.4972, -0.0976, -0.6242, -0.0966, -0.6765, -0.0957, -0.7288, -0.082, -0.726, -0.0911, -0.7493, -0.1001, -0.7726, -0.1364, -0.7965, -0.1507, -0.8165, -0.165, -0.8366, -0.172, -0.8576, -0.1767, -0.8697, -0.1815, -0.8819, -0.1794, -0.8819, -0.1792, -0.8894, -0.179, -0.8968, -0.1778, -0.9066, -0.1757, -0.9146, -0.1737, -0.9225, -0.1705, -0.9304, -0.1671, -0.937, -0.1636, -0.9435, -0.1602, -0.9482, -0.155, -0.9538, -0.1497, -0.9594, -0.1432, -0.9655, -0.1354, -0.9706, -0.1276, -0.9757, -0.1284, -0.9776, -0.1083, -0.9846, -0.0881, -0.9916, -0.0349, -1.0079, -0.0144, -1.0126, 6e-3, -1.0173, -6e-3, -1.0173, 0.0144, -1.0126],
+    middle: [0.0368, -1.0183, 0.0657, -1.0129, 0.1108, -0.9973, 0.1366, -0.9858, 0.1624, -0.9743, 0.1755, -0.9627, 0.1917, -0.9492, 0.208, -0.9356, 0.225, -0.9173, 0.2342, -0.9045, 0.2434, -0.8916, 0.2439, -0.8835, 0.2469, -0.872, 0.2498, -0.8604, 0.2517, -0.8462, 0.2519, -0.8354, 0.2522, -0.8245, 0.2555, -0.8245, 0.2484, -0.8069, 0.2412, -0.7893, 0.2204, -0.7486, 0.2089, -0.7297, 0.1975, -0.7107, 0.1936, -0.7066, 0.1798, -0.6931, 0.1661, -0.6795, 0.1361, -0.6579, 0.1262, -0.6484, 0.1163, -0.6389, 0.1201, -0.6524, 0.1203, -0.6362, 0.1205, -0.6199, 0.1216, -0.5759, 0.1275, -0.5508, 0.1334, -0.5257, 0.1468, -0.502, 0.1555, -0.4858, 0.1642, -0.4695, 0.1713, -0.4675, 0.1797, -0.4533, 0.1881, -0.439, 0.1969, -0.4228, 0.206, -0.4004, 0.2152, -0.378, 0.227, -0.3455, 0.2347, -0.3191, 0.2423, -0.2927, 0.2504, -0.271, 0.2519, -0.2419, 0.2534, -0.2127, 0.2467, -0.1667, 0.2437, -0.1443, 0.2408, -0.122, 0.2387, -0.1199, 0.2341, -0.1077, 0.2295, -0.0955, 0.2254, -0.086, 0.2163, -0.0711, 0.2072, -0.0562, 0.1905, -0.0312, 0.1795, -0.0183, 0.1684, -54e-4, 0.1701, -41e-4, 0.1499, 61e-4, 0.1298, 0.0163, 0.0933, 0.0366, 0.0586, 0.0427, 0.0238, 0.0488, -0.0238, 0.0488, -0.0586, 0.0427, -0.0933, 0.0366, -0.1298, 0.0163, -0.1499, 61e-4, -0.1701, -41e-4, -0.1684, -54e-4, -0.1795, -0.0183, -0.1905, -0.0312, -0.2072, -0.0562, -0.2163, -0.0711, -0.2254, -0.086, -0.2295, -0.0955, -0.2341, -0.1077, -0.2387, -0.1199, -0.2408, -0.122, -0.2437, -0.1443, -0.2467, -0.1667, -0.2534, -0.2127, -0.2519, -0.2419, -0.2504, -0.271, -0.2423, -0.2927, -0.2347, -0.3191, -0.227, -0.3455, -0.2152, -0.378, -0.206, -0.4004, -0.1969, -0.4228, -0.1881, -0.439, -0.1797, -0.4533, -0.1713, -0.4675, -0.1642, -0.4695, -0.1555, -0.4858, -0.1468, -0.502, -0.1334, -0.5257, -0.1275, -0.5508, -0.1216, -0.5759, -0.1205, -0.6199, -0.1203, -0.6362, -0.1201, -0.6524, -0.1163, -0.6389, -0.1262, -0.6484, -0.1361, -0.6579, -0.1661, -0.6795, -0.1798, -0.6931, -0.1936, -0.7066, -0.1975, -0.7107, -0.2089, -0.7297, -0.2204, -0.7486, -0.2412, -0.7893, -0.2484, -0.8069, -0.2555, -0.8245, -0.2522, -0.8245, -0.2519, -0.8354, -0.2517, -0.8462, -0.2498, -0.8604, -0.2469, -0.872, -0.2439, -0.8835, -0.2434, -0.8916, -0.2342, -0.9045, -0.225, -0.9173, -0.208, -0.9356, -0.1917, -0.9492, -0.1755, -0.9627, -0.1624, -0.9743, -0.1366, -0.9858, -0.1108, -0.9973, -0.0657, -1.0129, -0.0368, -1.0183, -79e-4, -1.0237, 79e-4, -1.0237, 0.0368, -1.0183],
+    distal: [0.0342, -1.0371, 0.0605, -1.0333, 0.0913, -1.0257, 0.1235, -1.0143, 0.1556, -1.0029, 0.2054, -0.981, 0.2273, -0.9686, 0.2493, -0.9562, 0.2438, -0.9581, 0.2554, -0.94, 0.267, -0.9219, 0.2871, -0.8876, 0.297, -0.86, 0.307, -0.8324, 0.3141, -0.7981, 0.3149, -0.7743, 0.3158, -0.7505, 0.3158, -0.7514, 0.3021, -0.7171, 0.2883, -0.6829, 0.2498, -0.601, 0.2321, -0.5686, 0.2145, -0.5362, 0.2067, -0.54, 0.1964, -0.5229, 0.186, -0.5057, 0.172, -0.4819, 0.1702, -0.4657, 0.1684, -0.4495, 0.1846, -0.44, 0.1856, -0.4257, 0.1866, -0.4114, 0.1761, -0.3962, 0.1762, -0.38, 0.1763, -0.3638, 0.1687, -0.3552, 0.186, -0.3286, 0.2033, -0.3019, 0.2614, -0.2429, 0.2802, -0.22, 0.299, -0.1971, 0.2928, -0.2048, 0.299, -0.1914, 0.3052, -0.1781, 0.3174, -0.1571, 0.3172, -0.14, 0.317, -0.1229, 0.3098, -0.1057, 0.2981, -0.0886, 0.2864, -0.0714, 0.2659, -0.0495, 0.2469, -0.0371, 0.2279, -0.0248, 0.2143, -0.0229, 0.1841, -0.0143, 0.1539, -57e-4, 0.0906, 67e-4, 0.0657, 0.0143, 0.0407, 0.0219, 0.0511, 0.0286, 0.0344, 0.0314, 0.0178, 0.0343, -0.0178, 0.0343, -0.0344, 0.0314, -0.0511, 0.0286, -0.0407, 0.0219, -0.0657, 0.0143, -0.0906, 67e-4, -0.1539, -57e-4, -0.1841, -0.0143, -0.2143, -0.0229, -0.2279, -0.0248, -0.2469, -0.0371, -0.2659, -0.0495, -0.2864, -0.0714, -0.2981, -0.0886, -0.3098, -0.1057, -0.317, -0.1229, -0.3172, -0.14, -0.3174, -0.1571, -0.3052, -0.1781, -0.299, -0.1914, -0.2928, -0.2048, -0.299, -0.1971, -0.2802, -0.22, -0.2614, -0.2429, -0.2033, -0.3019, -0.186, -0.3286, -0.1687, -0.3552, -0.1763, -0.3638, -0.1762, -0.38, -0.1761, -0.3962, -0.1866, -0.4114, -0.1856, -0.4257, -0.1846, -0.44, -0.1684, -0.4495, -0.1702, -0.4657, -0.172, -0.4819, -0.186, -0.5057, -0.1964, -0.5229, -0.2067, -0.54, -0.2145, -0.5362, -0.2321, -0.5686, -0.2498, -0.601, -0.2883, -0.6829, -0.3021, -0.7171, -0.3158, -0.7514, -0.3158, -0.7505, -0.3149, -0.7743, -0.3141, -0.7981, -0.307, -0.8324, -0.297, -0.86, -0.2871, -0.8876, -0.267, -0.9219, -0.2554, -0.94, -0.2438, -0.9581, -0.2493, -0.9562, -0.2273, -0.9686, -0.2054, -0.981, -0.1556, -1.0029, -0.1235, -1.0143, -0.0913, -1.0257, -0.0605, -1.0333, -0.0342, -1.0371, -79e-4, -1.041, 79e-4, -1.041, 0.0342, -1.0371]
+  };
+
+  // src/render.ts
+  function bendMark(turn, cj) {
+    const r = 0.3, a = turn * R, dir = Math.sign(turn), f = (n) => n.toFixed(3);
+    const px = r * Math.sin(a), py = -r * Math.cos(a), tx = dir * Math.cos(a), ty = dir * Math.sin(a);
+    const head = [[px + tx * 0.1, py + ty * 0.1], [px - ty * 0.055, py + tx * 0.055], [px + ty * 0.055, py - tx * 0.055]];
+    return `<g class="bend ${cj < 0 ? "ext" : "flex"}"><path d="M 0 ${f(-r)} A ${r} ${r} 0 ${Math.abs(turn) > 180 ? 1 : 0} ${turn > 0 ? 1 : 0} ${f(px)} ${f(py)}"/><path class="head" d="M ${head.map(([x, y]) => `${f(x)} ${f(y)}`).join(" L ")} Z"/></g>`;
+  }
+  function boneSpan(d, i, o, skin = false) {
+    const len = BONES[d][i], ko = o > 0 ? KN[d] : 0, a = i === 1 ? -ko / 2 : 0, trim = d === "thumb" && !skin ? 0 : ko / 2;
+    const top = -(a + len), bot = -a;
+    return { top: i === 0 ? top + trim : top, bot: i === 1 ? bot - trim : bot };
+  }
+  var ART_FOR = {
+    thumb: ["proximal", "middle", "middle", "distal"],
+    index: ART_ORDER,
+    middle: ART_ORDER,
+    ring: ART_ORDER,
+    pinky: ART_ORDER
+  };
+  function skinPath(part, yBase, len) {
+    const a = ART[part], f = (v) => +v.toFixed(3);
+    let d = `M ${f(a[0] * len)} ${f(yBase + a[1] * len)}`;
+    for (let i = 2; i < a.length; i += 6)
+      d += ` C ${f(a[i] * len)} ${f(yBase + a[i + 1] * len)} ${f(a[i + 2] * len)} ${f(yBase + a[i + 3] * len)} ${f(a[i + 4] * len)} ${f(yBase + a[i + 5] * len)}`;
+    return d + " Z";
+  }
+  function handMarkup(st, hit = false, bend = false) {
+    const chain = (d, i) => {
+      const B = BONES[d], n = B.length, ko = st.o > 0 ? KN[d] : 0, w = wid(d, st.wscale), len = B[i];
+      const a = i === 1 ? -ko / 2 : 0, J = i === 0 ? ko : 0, top = -(a + len), bot = -a;
+      const sr = (d === "thumb" ? 0.125 : 0.22) * (SUM[d] / 8), jr = i === 0 ? KN[d] / 2 : sr;
+      const { boxW, emptyMargin } = getBoneBox(d, i);
+      let s2 = "";
+      if (st.boxes) {
+        s2 += `<rect class="box" x="${-boxW / 2}" y="${top}" width="${boxW}" height="${len}" stroke-dasharray="0.06 0.06"/>`;
+        if (i === n - 1) for (const x of [-boxW / 2 + emptyMargin, boxW / 2 - emptyMargin])
+          s2 += `<line class="box" x1="${x}" y1="${top}" x2="${x}" y2="${bot}" stroke-opacity="0.45" stroke-dasharray="0.03 0.03"/>`;
+      }
+      const art = st.skin && i < ART_FOR[d].length;
+      if (i > 0 && !art) s2 += `<rect class="buff" x="${-w / 2}" y="${-sr}" width="${w}" height="${sr * 2}" rx="0.03"/>`;
+      const { top: yTop, bot: yBot } = boneSpan(d, i, st.o, st.skin);
+      if (art) s2 += `<path class="bone" d="${skinPath(ART_FOR[d][i], yBot, yBot - yTop)}"/>`;
+      else if (i === n - 1) {
+        const r = w * 0.45, l = -w / 2, rt = w / 2;
+        s2 += `<path class="bone" d="M ${l} ${bot} L ${l} ${top + r} A ${r} ${r} 0 0 1 ${l + r} ${top} L ${rt - r} ${top} A ${r} ${r} 0 0 1 ${rt} ${top + r} L ${rt} ${bot} Z"/>`;
+      } else s2 += `<rect class="bone" x="${-w / 2}" y="${yTop}" width="${w}" height="${yBot - yTop}" rx="0.04"/>`;
+      if (hit) s2 += `<rect class="hit" x="${-w / 2 - 0.25}" y="${yTop - 0.25}" width="${w + 0.5}" height="${yBot - yTop + 0.5}" data-d="${d}" data-j="${Math.min(i + 1, n - 2)}"/>`;
+      if (i + 1 < n) {
+        const cj = st.cj[d][i] || 0, turn = bendTurn(d, cj) || 0;
+        s2 += `<g transform="translate(0 ${top + J / 2})"><g transform="rotate(${turn})">${chain(d, i + 1)}<circle class="child-joint" r="0.05"/><circle class="parent-joint" r="0.03" fill="url(#parentJointGrad)"/>` + (hit ? `<circle class="hit" r="${Math.max(jr, 0.35)}" data-d="${d}" data-j="${i}"/>` : "") + `</g>` + (bend && cj ? bendMark(turn, cj) : "") + `</g>`;
+      }
+      return s2;
+    };
+    let s = st.boxes ? `<g class="box"><rect x="-2" y="-4" width="4" height="4"/><line x1="-1" y1="-4" x2="-1" y2="0"/><line x1="0" y1="-4" x2="0" y2="0"/><line x1="1" y1="-4" x2="1" y2="0"/></g>` : "";
+    const active = getActiveFingers(st.build);
+    for (const d of FINGER_ORDER) if (active.includes(d)) s += `<g data-d="${d}" transform="rotate(${calcA(d, st)})">${chain(d, 0)}</g>`;
+    return s + `<circle class="wrist-sock" r="0.325"/><circle class="wrist-plug" r="0.1"/>` + (hit ? `<circle class="hit" r="0.65" data-w="1"><title>Wrist hub: drag to rotate the whole hand</title></circle>` : "");
+  }
+
+  // src/export.ts
+  var CRC_TABLE = (() => {
+    const table = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) {
+        c = c & 1 ? 3988292384 ^ c >>> 1 : c >>> 1;
+      }
+      table[n] = c >>> 0;
+    }
+    return table;
+  })();
+  function crc32(bytes) {
+    let crc = 4294967295;
+    for (const b of bytes) {
+      crc = CRC_TABLE[(crc ^ b) & 255] ^ crc >>> 8;
+    }
+    return (crc ^ 4294967295) >>> 0;
+  }
+  function concatBytes(parts) {
+    const length = parts.reduce((n, p) => n + p.length, 0);
+    const out = new Uint8Array(length);
+    let offset = 0;
+    for (const part of parts) {
+      out.set(part, offset);
+      offset += part.length;
+    }
+    return out;
+  }
+  function pngChunk(type, data) {
+    const name = new TextEncoder().encode(type);
+    const body = concatBytes([name, data]);
+    const out = new Uint8Array(body.length + 8);
+    const dv = new DataView(out.buffer);
+    dv.setUint32(0, data.length, false);
+    out.set(body, 4);
+    dv.setUint32(body.length + 4, crc32(body), false);
+    return out;
+  }
+  async function compressPngPixels(rgba, w, h) {
+    if (typeof CompressionStream === "undefined") {
+      throw new Error("This browser does not support CompressionStream for APNG; use a current browser release.");
+    }
+    const rowBytes = w * 4;
+    const raw = new Uint8Array((rowBytes + 1) * h);
+    for (let y = 0; y < h; y++) {
+      raw.set(rgba.subarray(y * rowBytes, (y + 1) * rowBytes), y * (rowBytes + 1) + 1);
+    }
+    const stream = new Blob([raw]).stream().pipeThrough(new CompressionStream("deflate"));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+  function pngHeader(w, h) {
+    const sig = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]);
+    const ihdr = new Uint8Array(13);
+    const dv = new DataView(ihdr.buffer);
+    dv.setUint32(0, w, false);
+    dv.setUint32(4, h, false);
+    ihdr[8] = 8;
+    ihdr[9] = 6;
+    return [sig, pngChunk("IHDR", ihdr)];
+  }
+  function encodeApng(compressedFrames, w, h, fps) {
+    const parts = pngHeader(w, h);
+    const actl = new Uint8Array(8);
+    const ad = new DataView(actl.buffer);
+    ad.setUint32(0, compressedFrames.length, false);
+    ad.setUint32(4, 0, false);
+    parts.push(pngChunk("acTL", actl));
+    let seq = 0;
+    for (let i = 0; i < compressedFrames.length; i++) {
+      const fctl = new Uint8Array(26);
+      const dv = new DataView(fctl.buffer);
+      dv.setUint32(0, seq++, false);
+      dv.setUint32(4, w, false);
+      dv.setUint32(8, h, false);
+      dv.setUint32(12, 0, false);
+      dv.setUint32(16, 0, false);
+      dv.setUint16(20, 1, false);
+      dv.setUint16(22, fps, false);
+      fctl[24] = 0;
+      fctl[25] = 0;
+      parts.push(pngChunk("fcTL", fctl));
+      if (i === 0) {
+        parts.push(pngChunk("IDAT", compressedFrames[i]));
+      } else {
+        const data = new Uint8Array(compressedFrames[i].length + 4);
+        new DataView(data.buffer).setUint32(0, seq++, false);
+        data.set(compressedFrames[i], 4);
+        parts.push(pngChunk("fdAT", data));
+      }
+    }
+    parts.push(pngChunk("IEND", new Uint8Array(0)));
+    return new Blob(parts, { type: "image/apng" });
+  }
+  function gifPalette() {
+    const table = new Uint8Array(768);
+    table[0] = 226;
+    table[1] = 226;
+    table[2] = 232;
+    for (let i = 1; i < 256; i++) {
+      const q = i - 1;
+      table[i * 3] = Math.round((q >> 5 & 7) * 255 / 7);
+      table[i * 3 + 1] = Math.round((q >> 2 & 7) * 255 / 7);
+      table[i * 3 + 2] = Math.round((q & 3) * 255 / 3);
+    }
+    return table;
+  }
+  function gifIndices(rgba) {
+    const out = new Uint8Array(rgba.length / 4);
+    for (let s = 0, d = 0; s < rgba.length; s += 4, d++) {
+      if (rgba[s + 3] < 128) {
+        out[d] = 0;
+      } else {
+        const q = (rgba[s] >> 5) * 32 + (rgba[s + 1] >> 5) * 4 + (rgba[s + 2] >> 6);
+        out[d] = q === 255 ? 255 : q + 1;
+      }
+    }
+    return out;
+  }
+  function gifLzw(data) {
+    const clear = 256;
+    const end = 257;
+    const dict = /* @__PURE__ */ new Map();
+    const out = [];
+    let next = 258;
+    let bits = 9;
+    let acc = 0;
+    let bitCount = 0;
+    const write = (code, size) => {
+      acc |= code << bitCount;
+      bitCount += size;
+      while (bitCount >= 8) {
+        out.push(acc & 255);
+        acc >>>= 8;
+        bitCount -= 8;
+      }
+    };
+    write(clear, bits);
+    if (data.length) {
+      let prefix = data[0];
+      for (let i = 1; i < data.length; i++) {
+        const value = data[i];
+        const key = prefix << 8 | value;
+        const found = dict.get(key);
+        if (found !== void 0) {
+          prefix = found;
+        } else {
+          write(prefix, bits);
+          if (next < 4096) {
+            dict.set(key, next++);
+            if (next === 1 << bits && bits < 12) bits++;
+          } else {
+            write(clear, bits);
+            dict.clear();
+            next = 258;
+            bits = 9;
+          }
+          prefix = value;
+        }
+      }
+      write(prefix, bits);
+    }
+    write(end, bits);
+    if (bitCount) out.push(acc & 255);
+    return Uint8Array.from(out);
+  }
+  function le16(v) {
+    return [v & 255, v >> 8 & 255];
+  }
+  function gifFrame(indices, w, h, fps) {
+    const delay = Math.max(2, Math.round(100 / fps));
+    const compressed = gifLzw(indices);
+    const bytes = [
+      33,
+      249,
+      4,
+      9,
+      ...le16(delay),
+      0,
+      0,
+      // Graphics control extension: transparent index 0, dispose to background
+      44,
+      ...le16(0),
+      ...le16(0),
+      ...le16(w),
+      ...le16(h),
+      0,
+      8
+      // Image descriptor
+    ];
+    for (let i = 0; i < compressed.length; i += 255) {
+      const block = compressed.subarray(i, i + 255);
+      bytes.push(block.length);
+      for (const v of block) bytes.push(v);
+    }
+    bytes.push(0);
+    return Uint8Array.from(bytes);
+  }
+  function gifHeader(w, h) {
+    const header = Uint8Array.from([71, 73, 70, 56, 57, 97, ...le16(w), ...le16(h), 247, 0, 0]);
+    const loop = Uint8Array.from([33, 255, 11, 78, 69, 84, 83, 67, 65, 80, 69, 50, 46, 48, 3, 1, 0, 0, 0]);
+    return [header, gifPalette(), loop];
+  }
+  function zipStore(files) {
+    const local = [];
+    const central = [];
+    let offset = 0;
+    for (const file of files) {
+      const name = new TextEncoder().encode(file.name);
+      const data = file.data;
+      const crc = crc32(data);
+      const lh = new Uint8Array(30);
+      const ld = new DataView(lh.buffer);
+      ld.setUint32(0, 67324752, true);
+      ld.setUint16(4, 20, true);
+      ld.setUint16(6, 2048, true);
+      ld.setUint16(8, 0, true);
+      ld.setUint16(10, 0, true);
+      ld.setUint16(12, 33, true);
+      ld.setUint32(14, crc, true);
+      ld.setUint32(18, data.length, true);
+      ld.setUint32(22, data.length, true);
+      ld.setUint16(26, name.length, true);
+      ld.setUint16(28, 0, true);
+      local.push(lh, name, data);
+      const ch = new Uint8Array(46);
+      const cd = new DataView(ch.buffer);
+      cd.setUint32(0, 33639248, true);
+      cd.setUint16(4, 20, true);
+      cd.setUint16(6, 20, true);
+      cd.setUint16(8, 2048, true);
+      cd.setUint16(10, 0, true);
+      cd.setUint16(12, 0, true);
+      cd.setUint16(14, 33, true);
+      cd.setUint32(16, crc, true);
+      cd.setUint32(20, data.length, true);
+      cd.setUint32(24, data.length, true);
+      cd.setUint16(28, name.length, true);
+      cd.setUint16(30, 0, true);
+      cd.setUint16(32, 0, true);
+      cd.setUint16(34, 0, true);
+      cd.setUint16(36, 0, true);
+      cd.setUint32(38, 0, true);
+      cd.setUint32(42, offset, true);
+      central.push(ch, name);
+      offset += lh.length + name.length + data.length;
+    }
+    const csize = central.reduce((n, p) => n + p.length, 0);
+    const end = new Uint8Array(22);
+    const ed = new DataView(end.buffer);
+    ed.setUint32(0, 101010256, true);
+    ed.setUint16(4, 0, true);
+    ed.setUint16(6, 0, true);
+    ed.setUint16(8, files.length, true);
+    ed.setUint16(10, files.length, true);
+    ed.setUint32(12, csize, true);
+    ed.setUint32(16, offset, true);
+    return new Blob([...local, ...central, end], { type: "application/zip" });
+  }
+  function interpolatePose(from, to, t) {
+    const a = cleanPose(from);
+    const b = cleanPose(to);
+    if (t <= 0) return { ...defaultState(), ...a };
+    if (t >= 1) return { ...defaultState(), ...b };
+    const p = defaultState();
+    p.build = t < 0.5 ? a.build || "standard" : b.build || "standard";
+    p.expert = a.expert || b.expert;
+    p.o = t < 0.5 ? a.o : b.o;
+    p.wscale = t < 0.5 ? a.wscale : b.wscale;
+    p.boxes = t < 0.5 ? a.boxes : b.boxes;
+    p.skin = t < 0.5 ? a.skin : b.skin;
+    p.wrist = Math.round(norm(a.wrist + norm(b.wrist - a.wrist) * t));
+    p.splay = Math.round(a.splay + (b.splay - a.splay) * t);
+    p.thumb = Math.round(a.thumb + (b.thumb - a.thumb) * t);
+    p.tilt = Math.round(a.tilt + (b.tilt - a.tilt) * t);
+    for (const d of ["index", "ring", "pinky"]) {
+      p.fs[d] = Math.round(a.fs[d] + (b.fs[d] - a.fs[d]) * t);
+    }
+    for (const d of FINGER_ORDER) {
+      p.rot[d] = Math.round(a.rot[d] + (b.rot[d] - a.rot[d]) * t);
+      p.cj[d] = [
+        Math.round(a.cj[d][0] + (b.cj[d][0] - a.cj[d][0]) * t),
+        Math.round(a.cj[d][1] + (b.cj[d][1] - a.cj[d][1]) * t),
+        Math.round(a.cj[d][2] + (b.cj[d][2] - a.cj[d][2]) * t)
+      ];
+    }
+    return p;
+  }
+  function squareViewBox(b) {
+    const max = Math.max(b.width, b.height, 1);
+    const pad = Math.max(0.65, max * 0.1);
+    const size = max + 2 * pad;
+    const cx = b.x + b.width / 2;
+    const cy = b.y + b.height / 2;
+    return `${cx - size / 2} ${cy - size / 2} ${size} ${size}`;
+  }
+  function makeMeasurer() {
+    const measureSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    measureSvg.setAttribute("width", "1000");
+    measureSvg.setAttribute("height", "1000");
+    measureSvg.style.cssText = "position:fixed;left:-12000px;top:0;width:1000px;height:1000px;visibility:hidden;pointer-events:none;overflow:visible";
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    measureSvg.append(group);
+    document.body.append(measureSvg);
+    return {
+      measure(markup) {
+        group.innerHTML = markup;
+        group.querySelectorAll(".hit, .joint-hit").forEach((node) => node.remove());
+        const b = group.getBBox();
+        return { x: b.x, y: b.y, width: b.width, height: b.height };
+      },
+      destroy() {
+        measureSvg.remove();
+      }
+    };
+  }
+  var frameMarkup = (state) => `<g transform="rotate(${state.wrist})">${handMarkup(state)}</g>`;
+  function buildSvgDocument(markup, viewBox, size = 1024) {
+    const css = `
+    .bone { stroke: #9d4edd; stroke-width: 0.045; fill: #120e1a; }
+    .buff { stroke: rgba(157, 78, 221, 0.45); stroke-width: 0.02; stroke-dasharray: 0.08, 0.08; fill: none; }
+    .box { stroke: #adff2f; stroke-width: 0.035; stroke-dasharray: 0.1, 0.1; fill: none; }
+    .child-joint { fill: #8b25e0; stroke: #7c3aed; stroke-width: 0.008; }
+    .parent-joint { stroke: #166534; stroke-width: 0.004; }
+    .wrist-sock { stroke: #ef4444; stroke-width: 0.04; fill: #120e1a; }
+    .wrist-plug { fill: #ef4444; }
+  `;
+    const defs = `
+    <defs>
+      <radialGradient id="parentJointGrad" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+        <stop offset="0%" stop-color="#ffff33" />
+        <stop offset="35%" stop-color="#adff2f" />
+        <stop offset="70%" stop-color="#65a30d" />
+        <stop offset="100%" stop-color="#15803d" />
+      </radialGradient>
+    </defs>
+  `;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${viewBox}"><style>${css}</style>${defs}${markup}</svg>`;
+  }
+  async function canvasFromMarkup(markup, viewBox, size, opaque = false) {
+    const blob = new Blob([buildSvgDocument(markup, viewBox, size)], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    try {
+      const image = new Image();
+      await new Promise((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("Browser could not render export frame."));
+        image.src = url;
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) throw new Error("Cannot get 2D canvas context");
+      if (opaque) {
+        ctx.fillStyle = "#e2e2e8";
+        ctx.fillRect(0, 0, size, size);
+      }
+      ctx.drawImage(image, 0, 0, size, size);
+      return canvas;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+  function canvasBlob(canvas, type = "image/png") {
+    return new Promise(
+      (resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Could not create image blob")), type)
+    );
+  }
+  function downloadBlob(blob, name) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.style.display = "none";
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+  async function buildSequence(from, to, count, onProgress) {
+    const measurer = makeMeasurer();
+    const frames = [];
+    let bounds = null;
+    try {
+      for (let i = 0; i < count; i++) {
+        const t = count === 1 ? 1 : i / (count - 1);
+        const pose = interpolatePose(from, to, t);
+        const markup = frameMarkup(pose);
+        const b = measurer.measure(markup);
+        if (!bounds) {
+          bounds = { ...b };
+        } else {
+          const x = Math.min(bounds.x, b.x);
+          const y = Math.min(bounds.y, b.y);
+          const right = Math.max(bounds.x + bounds.width, b.x + b.width);
+          const bottom = Math.max(bounds.y + bounds.height, b.y + b.height);
+          bounds = { x, y, width: right - x, height: bottom - y };
+        }
+        frames.push({ pose, markup });
+        if (i % 3 === 0 && onProgress) {
+          onProgress(i + 1, count);
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+      }
+    } finally {
+      measurer.destroy();
+    }
+    const vb = squareViewBox(bounds || { x: -4, y: -8, width: 8, height: 10 });
+    return { frames, viewBox: vb };
+  }
+
+  // src/app.js
+  var $ = (s) => document.querySelector(s);
+  var svg = $("#s");
+  var hand = $("#hand");
+  var stage = $("#stage");
+  var NEUTRAL = "Neutral flat (default)";
+  var STORE = "pyxl.hand.v2";
+  var LEGACY = "***";
+  var BUILDS = [["standard", "5F", "Full Hand"], ["claw", "2F", "Claw"], ["trident", "3F", "Trident"], ["mickey", "4F", "Mickey's Glove"]];
+  var QUICK = [[NEUTRAL, "\u{1F590}"], ["Relaxed Natural", "\u{1F343}"], ["Fist", "\u270A"], ["Pointing", "\u261D"], ["Peace / Victory", "\u270C"], ["Thumbs Up", "\u{1F44D}"], ["Rock / Horns", "\u{1F918}"], ["Pinch / Grasp", "\u{1F90F}"]];
+  var copy = (o) => structuredClone(o);
+  var enc = (s) => new TextEncoder().encode(s);
+  var el = (tag, a = {}, ...kids) => {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(a)) k === "class" ? e.className = v : k === "html" ? e.innerHTML = v : k.startsWith("on") ? e.addEventListener(k.slice(2), v) : e.setAttribute(k, v);
+    e.append(...kids);
+    return e;
+  };
+  var btn = (label, onclick, a = {}) => el("button", { onclick, ...a }, label);
+  var showBend = false;
+  var S = defaultState();
+  var sel = NEUTRAL;
+  var hist = [copy(S)];
+  var hi = 0;
+  var anim = 0;
+  var frozen = false;
+  var preview = null;
+  var busy = false;
+  var sync = [];
+  var load = () => {
+    try {
+      return JSON.parse(localStorage.getItem(STORE) ?? localStorage.getItem(LEGACY) ?? "{}");
+    } catch {
+      return {};
+    }
+  };
+  var saved = load();
+  var savedRev = 0;
+  var persist = () => {
+    savedRev++;
+    try {
+      localStorage.setItem(STORE, JSON.stringify(saved, null, 2));
+    } catch {
+    }
+  };
+  var keep = (s) => ({ expert: s.expert, o: s.o, wscale: s.wscale, boxes: s.boxes, skin: s.skin, build: s.build });
+  var isCustom = (k) => k in saved && !(k in PRESET_POSES);
+  var poseState = (k) => {
+    const raw = PRESET_POSES[k] ?? saved[k];
+    return raw ? clampStateToLimits({ ...defaultState(), ...cleanPose(raw), ...keep(S) }) : copy(S);
+  };
+  var same = (a, b) => JSON.stringify(cleanPose(a)) === JSON.stringify(cleanPose(b));
+  var tt;
+  var toast = (m, ms = 1800) => {
+    const t = $("#toast");
+    t.textContent = m;
+    t.hidden = false;
+    clearTimeout(tt);
+    tt = setTimeout(() => t.hidden = true, ms);
+  };
+  var updHist = () => {
+    document.querySelectorAll(".u").forEach((b) => b.disabled = hi <= 0);
+    document.querySelectorAll(".r").forEach((b) => b.disabled = hi >= hist.length - 1);
+  };
+  function commit(s = S) {
+    if (same(hist[hi], s)) return;
+    hist = hist.slice(0, hi + 1);
+    hist.push(copy(s));
+    if (hist.length > 60) hist.shift();
+    hi = hist.length - 1;
+    updHist();
+  }
+  function glide(target, ms = 320) {
+    cancelAnimationFrame(anim);
+    const from = copy(S), t0 = performance.now();
+    const tick = (now) => {
+      const p = Math.min(1, (now - t0) / ms);
+      S = p < 1 ? interpolatePose(from, target, 0.5 - 0.5 * Math.cos(p * Math.PI)) : copy(target);
+      draw();
+      if (p < 1) anim = requestAnimationFrame(tick);
+    };
+    anim = requestAnimationFrame(tick);
+  }
+  var apply = (t, ms = 320, msg) => {
+    commit(t);
+    glide(t, ms);
+    if (msg) toast(msg);
+  };
+  var stepHist = (d) => {
+    const i = hi + d;
+    if (i < 0 || i >= hist.length) return;
+    hi = i;
+    updHist();
+    glide(hist[hi]);
+    toast(d < 0 ? "Undo" : "Redo", 1200);
+  };
+  var applyPose = (k) => {
+    sel = k;
+    apply(poseState(k));
+    refresh();
+  };
+  function savePose(quick) {
+    let n = $name.value.trim();
+    if (!n || quick && saved[n]) {
+      let i = 1;
+      while (saved["Pose " + i]) i++;
+      n = "Pose " + i;
+    }
+    saved[n] = cleanPose(S);
+    persist();
+    sel = n;
+    $name.value = "";
+    refresh();
+    toast(`Saved "${n}"`, 2200);
+  }
+  function delPose() {
+    if (!isCustom(sel)) return toast("Cannot delete default or preset poses", 2200);
+    const n = sel;
+    delete saved[n];
+    persist();
+    applyPose(NEUTRAL);
+    toast(`Deleted "${n}"`, 2200);
+  }
+  function mirror() {
+    const t = copy(S);
+    t.wrist = norm(-t.wrist);
+    for (const k of ["splay", "thumb", "tilt"]) t[k] = -t[k];
+    for (const d of FINGER_ORDER) t.rot[d] = -t.rot[d];
+    for (const d in t.fs) t.fs[d] = -t.fs[d];
+    apply(t, 350, "Mirrored");
+  }
+  function curl(dl) {
+    const t = copy(S);
+    for (const d of FINGER_ORDER) {
+      const [lo, hi2] = cRange(d, t.expert);
+      t.cj[d] = t.cj[d].map((v) => clamp(v + dl, lo, hi2));
+    }
+    apply(t, 220, dl > 0 ? `Curled +${dl}\xB0` : `Extended ${dl}\xB0`);
+  }
+  function shuffle() {
+    const t = copy(S), rnd = (n) => Math.floor(Math.random() * n);
+    for (const d of FINGER_ORDER) {
+      const [cl, ch] = cRange(d, t.expert), [rl, rh] = rRange(d, t.expert), b = rnd(ch - cl) + cl;
+      t.cj[d] = [0, 1, 2].map(() => clamp(b + rnd(20) - 10, cl, ch));
+      t.rot[d] = clamp(Math.round(rnd((rh - rl) * 0.5) + rl * 0.25), rl, rh);
+    }
+    t.splay = clamp(rnd(60) - 20, -50, 70);
+    apply(t, 320, "Randomized natural gesture");
+  }
+  function setBuild(id) {
+    S.build = id;
+    commit();
+    draw();
+  }
+  var cycleBuild = () => {
+    const b = BUILDS[(BUILDS.findIndex((x) => x[0] === S.build) + 1) % 4];
+    setBuild(b[0]);
+    toast("Build: " + b[2], 2e3);
+  };
+  var reset = () => {
+    sel = NEUTRAL;
+    apply(poseState(NEUTRAL), 320, "Reset to Neutral flat");
+    refresh();
+  };
+  function draw() {
+    hand.setAttribute("transform", `rotate(${S.wrist})`);
+    hand.innerHTML = handMarkup(S, true, showBend);
+    sync.forEach((f) => f());
+    if (!frozen) fit();
+  }
+  function fit() {
+    const bb = hand.getBBox();
+    const r = stage.getBoundingClientRect(), asp = Math.max(0.2, (r.width || 800) / (r.height || 500));
+    const bh = 10.5, dw = asp >= 1 ? bh * asp : bh, dh = asp >= 1 ? bh : bh / asp, dy = 1.3 - dh;
+    let v = [-dw / 2, dy, dw, dh];
+    if (bb.width > 0 && bb.height > 0) {
+      const c = Math.cos(S.wrist * R), s = Math.sin(S.wrist * R);
+      const bottom = Math.max(...[bb.x, bb.x + bb.width].flatMap((x) => [bb.y, bb.y + bb.height].map((y) => x * s + y * c)));
+      if (bottom > 1.3) {
+        const h = Math.max(dh, bottom + 0.6 - dy), w = asp >= 1 ? h * asp : h;
+        v = [-w / 2, dy, w, h];
+      }
+    }
+    svg.setAttribute("viewBox", v.join(" "));
+  }
+  $("#grid").innerHTML = Array.from({ length: 29 }, (_, i) => i - 14).map((n) => `<line class="${n ? "g-unit" : "axis"}" x1="${n}" y1="-14" x2="${n}" y2="14"/><line class="${n ? "g-unit" : "axis"}" x1="-14" y1="${n}" x2="14" y2="${n}"/>`).join("");
+  var drag = null;
+  var inv = null;
+  var pend = false;
+  svg.onpointerdown = (e) => {
+    if (preview) return;
+    const t = e.target, ds = t.dataset, g = t.closest?.("[data-d]");
+    drag = ds.w ? { w: 1 } : ds.j !== void 0 && ds.d ? { d: ds.d, k: +ds.j } : g ? { d: g.dataset.d, f: 1 } : null;
+    if (!drag) return;
+    inv = svg.getScreenCTM().inverse();
+    frozen = true;
+    cancelAnimationFrame(anim);
+    svg.setPointerCapture(e.pointerId);
+  };
+  svg.onpointermove = (e) => {
+    if (!drag || pend) return;
+    pend = true;
+    const { clientX, clientY } = e;
+    requestAnimationFrame(() => {
+      pend = false;
+      if (!drag) return;
+      const { x, y } = new DOMPoint(clientX, clientY).matrixTransform(inv), a = Math.atan2(x, -y) / R;
+      if (drag.w) S.wrist = Math.round(norm(a));
+      else if (drag.f) {
+        const d = drag.d, [lo, hi2] = rRange(d, S.expert);
+        S.rot[d] = Math.round(clamp(norm(a - (S.wrist + calcA(d, S) - S.rot[d])), lo, hi2));
+      } else S = runIk(drag.d, drag.k, x, y, S);
+      draw();
+    });
+  };
+  svg.onpointerup = svg.onpointercancel = () => {
+    if (!drag) return;
+    drag = null;
+    frozen = !!preview;
+    commit();
+    fit();
+  };
+  $("#split").onpointerdown = () => {
+    const mv = (e) => {
+      stage.style.height = clamp(e.clientY / innerHeight * 100, 20, 85) + "%";
+      fit();
+    };
+    const up = () => {
+      removeEventListener("pointermove", mv);
+      removeEventListener("pointerup", up);
+    };
+    addEventListener("pointermove", mv);
+    addEventListener("pointerup", up);
+  };
+  $("#split").ondblclick = () => {
+    stage.style.height = "66.667%";
+    fit();
+  };
+  addEventListener("resize", () => !frozen && fit());
+  var typing = (t) => /^(textarea|select)$/i.test(t.tagName) || t.tagName === "INPUT" && !/^(range|button)$/.test(t.type);
+  var spaceKey = (e) => e.code === "Space" && !typing(e.target) && !e.ctrlKey && !e.metaKey && !e.altKey && $("#help").hidden;
+  addEventListener("keydown", (e) => {
+    if (!spaceKey(e)) return;
+    e.preventDefault();
+    if (e.repeat) return;
+    if (e.target.tagName === "BUTTON") e.target.blur();
+    snapPng();
+  });
+  addEventListener("keyup", (e) => {
+    if (spaceKey(e)) e.preventDefault();
+  });
+  addEventListener("keydown", (e) => {
+    if (/^(input|textarea|select)$/i.test(e.target.tagName) || !(e.ctrlKey || e.metaKey) || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k === "z" || k === "y") {
+      e.preventDefault();
+      stepHist(k === "y" || e.shiftKey ? 1 : -1);
+    }
+  });
+  function slider(label, unit, range, get, set) {
+    const r = el("input", { type: "range" }), n = el("input", { type: "number" });
+    const put = (v) => {
+      const [lo, hi2] = range();
+      set(clamp(Number(v) || 0, lo, hi2));
+      draw();
+    };
+    r.oninput = () => put(r.value);
+    n.oninput = () => put(n.value);
+    r.onchange = n.onchange = () => commit();
+    sync.push(() => {
+      const [lo, hi2] = range(), v = get();
+      for (const i of [r, n]) {
+        i.min = lo;
+        i.max = hi2;
+        if (document.activeElement !== i) i.value = v;
+      }
+    });
+    return el("div", { class: "row" }, el("label", {}, label), r, n, el("span", { class: "u" }, unit));
+  }
+  function check(label, note, get, set) {
+    const c = el("input", { type: "checkbox" });
+    c.onchange = () => {
+      set(c.checked);
+      draw();
+      commit();
+    };
+    sync.push(() => c.checked = get());
+    return el("label", { class: "chk" }, c, label, el("small", {}, note));
+  }
+  var flies = {};
+  function fly(id, side, title, ...kids) {
+    const f = el("div", { class: `fly ${side}`, hidden: "" }, el("h2", {}, title, btn("\u2715", () => show(id))), ...kids);
+    flies[id] = f;
+    stage.append(f);
+    return f;
+  }
+  function show(id) {
+    const open = flies[id].hidden;
+    for (const f of Object.values(flies)) f.hidden = true;
+    flies[id].hidden = !open;
+    sync.forEach((f) => f());
+  }
+  var tbtn = (label, title, fn, a = {}) => btn(label, fn, { title, ...a });
+  var section = (title, icon, open, ...kids) => {
+    const d = el("details", { class: "sec" }, el("summary", {}, `${icon} ${title}`, el("small", { class: "bdg", hidden: "" }), el("i", { class: "chev" }, "\u25BC")), el("div", { class: "col" }, ...kids));
+    d.open = open;
+    return d;
+  };
+  var badge = (d, n) => {
+    const b = d.querySelector(".bdg");
+    b.textContent = n ?? "";
+    b.hidden = n === void 0;
+  };
+  var $name = el("input", { type: "text", placeholder: "Pose name (empty = auto #)" });
+  var $q = el("input", { type: "text", placeholder: "Search poses\u2026" });
+  var cat = "all";
+  var $presets = el("div", { class: "pl" });
+  var $mine = el("div", { class: "pl" });
+  var $json = el("textarea", { placeholder: "Paste JSON pose or click Export JSON\u2026" });
+  var chips = ["all", "presets", "saved"].map((c) => btn({ all: "All", presets: "Canonical", saved: "Custom" }[c], () => {
+    cat = c;
+    refresh();
+  }, { "data-c": c }));
+  var selMorph = el("select");
+  var selFrom = el("select");
+  var selTo = el("select");
+  var $del = btn("Delete", delPose);
+  var secMine = section("User Saved Poses", "\u{1F516}", true, $mine, el("div", { class: "r2" }, $name, btn("Save", () => savePose(false)), $del));
+  function refresh() {
+    const t = $q.value.trim().toLowerCase(), hit = (k) => !t || k.toLowerCase().includes(t);
+    const fill = (box, keys, empty, cls) => {
+      const ks = keys.filter(hit);
+      box.replaceChildren(...ks.map((k) => btn(k, () => applyPose(k), { class: "pose" + cls + (k === sel ? " on" : ""), title: k })));
+      if (!ks.length) box.textContent = empty;
+      return ks.length;
+    };
+    fill($presets, cat === "saved" ? [] : Object.keys(PRESET_POSES), "No matching presets", "");
+    badge(secMine, fill($mine, cat === "presets" ? [] : Object.keys(saved), Object.keys(saved).length ? "No matching poses" : "No user poses saved yet", " me"));
+    chips.forEach((b) => b.classList.toggle("on", b.dataset.c === cat));
+    for (const s of [selMorph, selFrom, selTo]) {
+      const v = s.value;
+      s.replaceChildren(...[["Presets", Object.keys(PRESET_POSES)], ["Saved", Object.keys(saved)]].filter((g) => g[1].length).map(([l, ks]) => el("optgroup", { label: l }, ...ks.map((k) => el("option", { value: k }, k)))));
+      s.value = [...s.options].some((o) => o.value === v) ? v : s === selMorph || s === selTo ? "Fist" : NEUTRAL;
+    }
+    document.querySelectorAll("[data-q]").forEach((b) => b.classList.toggle("on", b.dataset.q === sel));
+    $del.disabled = !isCustom(sel);
+  }
+  $q.oninput = refresh;
+  fly(
+    "lib",
+    "l",
+    "Pose Library",
+    $q,
+    el("div", { class: "r2" }, ...chips),
+    section("Quick Pose Presets", "\u{1F4D6}", true, $presets),
+    secMine,
+    section("JSON Pose Data", "{}", false, el("div", { class: "r2" }, btn("Export JSON", () => $json.value = JSON.stringify(cleanPose(S), null, 2)), btn("Import JSON", () => {
+      try {
+        apply(clampStateToLimits({ ...defaultState(), ...cleanPose(JSON.parse($json.value)), ...keep(S) }), 320, "Pose JSON loaded");
+      } catch {
+        toast("Invalid JSON pose data", 2500);
+      }
+    })), $json)
+  );
+  var morphBase = null;
+  var morphAmt = 0;
+  var $mv = el("span", {}, "0%");
+  var $mr = el("input", { type: "range", min: 0, max: 100, value: 0, style: "width:100%;accent-color:var(--acc)" });
+  var morphZero = () => {
+    morphBase = null;
+    $mr.value = morphAmt = 0;
+    $mv.textContent = "0%";
+  };
+  $mr.oninput = () => {
+    if (!morphAmt) morphBase = copy(S);
+    morphAmt = +$mr.value;
+    $mv.textContent = morphAmt + "%";
+    S = interpolatePose(morphBase, poseState(selMorph.value), morphAmt / 100);
+    draw();
+  };
+  selMorph.onchange = morphZero;
+  var avgCurl = () => Math.round(["index", "middle", "ring", "pinky"].reduce((n, d) => n + S.cj[d][0], 0) / 4);
+  fly(
+    "morph",
+    "l",
+    "Live Pose Morph",
+    section(
+      "Target Pose & Morph Scrub",
+      "\u{1F39A}",
+      true,
+      el("label", {}, "Target pose"),
+      selMorph,
+      el("div", { class: "r2" }, el("span", {}, "Morph amount"), $mv),
+      $mr,
+      el("div", { class: "r2" }, btn("Commit morph", () => {
+        commit();
+        morphZero();
+        toast("Morph applied");
+      }), btn("Reset", () => {
+        morphZero();
+        reset();
+      }))
+    ),
+    section(
+      "Master Rig Controls",
+      "\u{1F525}",
+      false,
+      slider("All curl", "\xB0", () => [-20, 90], avgCurl, (v) => {
+        for (const d of FINGER_ORDER) {
+          const c = clamp(v, ...cRange(d, S.expert));
+          S.cj[d] = [c, c, c];
+        }
+      }),
+      slider("Hand splay", "%", () => [-100, 100], () => S.splay, (v) => S.splay = v),
+      slider("Wrist", "\xB0", () => [-180, 180], () => S.wrist, (v) => S.wrist = v)
+    )
+  );
+  fly(
+    "rig",
+    "r",
+    "Hand Rig",
+    section(
+      "Hand Angles & Splay",
+      "\u{1F525}",
+      false,
+      slider("Wrist", "\xB0", () => [-180, 180], () => S.wrist, (v) => S.wrist = v),
+      slider("Hand splay", "%", () => [-100, 100], () => S.splay, (v) => S.splay = v),
+      slider("Bird tilt", "\xB0", () => [-30, 30], () => S.tilt, (v) => S.tilt = v)
+    ),
+    section(
+      "Rig Options & Toggles",
+      "\u{1F39A}",
+      false,
+      check("Expert mode ", "(unconstrained \xB190\xB0)", () => S.expert, (v) => {
+        S.expert = v;
+        S = clampStateToLimits(S);
+      }),
+      check("Knuckle overlap ", "(0.5 / end-to-end)", () => S.o > 0, (v) => S.o = v ? 0.5 : 0),
+      check("Scale widths ", "(by SUM\u2212KN / 7)", () => S.wscale, (v) => S.wscale = v),
+      check("Handpiece art ", "(all five digits)", () => S.skin, (v) => S.skin = v),
+      check("Show bend arrows ", "(lime = curl, red = hyperextension)", () => showBend, (v) => showBend = v),
+      check("Show bone & palm boxes ", "(4:1, 2:1, 1:1, 1:1 + 12.5% margins)", () => S.boxes, (v) => S.boxes = v)
+    )
+  );
+  var $stem = el("input", { type: "text", value: "pyxl-hand" });
+  var stem = () => $stem.value.trim() || "pyxl-hand";
+  var guard = (fn) => async () => {
+    if (busy || preview) return;
+    busy = true;
+    try {
+      await fn();
+    } catch (e) {
+      toast(`Export failed: ${e.message || e}`, 4e3);
+    } finally {
+      busy = false;
+      progress();
+    }
+  };
+  var $snaps = el("div", { id: "snaps" });
+  stage.append($snaps);
+  function deliver(blob, name) {
+    downloadBlob(blob, name);
+    const url = URL.createObjectURL(blob), isImg = blob.type.startsWith("image/"), card = el("div", { class: "snap" });
+    const close = () => {
+      URL.revokeObjectURL(url);
+      card.remove();
+    };
+    const copy2 = el("button", { onclick: async () => {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+        toast("Copied to clipboard", 1500);
+      } catch {
+        toast("Copy is blocked here: use Save, or long-press / right-click the picture", 3200);
+      }
+    } }, "Copy");
+    card.append(
+      isImg ? el("img", { src: url, alt: name }) : el("span", { class: "ico" }, "\u{1F4E6}"),
+      el(
+        "div",
+        { class: "col" },
+        el("b", {}, name),
+        el("small", {}, isImg ? "Nothing downloaded? Long-press / right-click the picture, or:" : "Nothing downloaded? Use Save:"),
+        el("div", { class: "r2" }, el("a", { href: url, download: name }, "Save"), ...blob.type === "image/png" ? [copy2] : [], btn("\u2715", close, { title: "Dismiss" }))
+      )
+    );
+    $snaps.append(card);
+    while ($snaps.children.length > 3) $snaps.firstChild.querySelector("button:last-child").click();
+  }
+  var $bar = el("div", { class: "bar", hidden: "" }, el("i"));
+  var $stage = el("small", {});
+  function progress(stageText, cur, tot) {
+    $bar.hidden = !stageText;
+    if (stageText) {
+      $stage.textContent = `${stageText} ${cur}/${tot}`;
+      $bar.firstChild.style.width = Math.round(cur / tot * 100) + "%";
+    } else $stage.textContent = "";
+  }
+  async function stillMarkup() {
+    const markup = frameMarkup(S), m = makeMeasurer();
+    try {
+      return { markup, vb: squareViewBox(m.measure(markup)) };
+    } finally {
+      m.destroy();
+    }
+  }
+  var pngJob = (name) => guard(async () => {
+    const { markup, vb } = await stillMarkup();
+    deliver(await canvasBlob(await canvasFromMarkup(markup, vb, 1024)), name);
+    toast(`Exported ${name}`, 2500);
+  });
+  var savePng = () => pngJob(stem() + ".png")();
+  var snaps = 0;
+  var snapPng = () => {
+    if (preview) return toast("Stop the preview first, then press Space", 2200);
+    if (busy) return;
+    toast("Saving PNG\u2026", 1200);
+    pngJob(`${stem()}-${String(++snaps).padStart(3, "0")}.png`)();
+  };
+  var saveSvg = guard(async () => {
+    const { markup, vb } = await stillMarkup();
+    deliver(new Blob([buildSvgDocument(markup, vb, 1024)], { type: "image/svg+xml;charset=utf-8" }), stem() + ".svg");
+    toast(`Exported ${stem()}.svg`, 2500);
+  });
+  fly(
+    "img",
+    "r",
+    "Save Pose Image",
+    section("Image Export Formats", "\u{1F5BC}", true, el("label", {}, "Filename stem"), $stem, el("div", { class: "r2" }, btn("Save PNG", savePng, { title: "Transparent 1024\xD71024 PNG (Space saves one instantly)" }), btn("Save SVG", saveSvg, { title: "Vector SVG" }))),
+    section("Format Info & Resolution", "{}", false, el("small", {}, "Centered 1024\xD71024 transparent export in the violet / lime palette."))
+  );
+  var $dur = el("input", { type: "range", min: 0.2, max: 4, step: 0.1, value: 1, style: "accent-color:var(--acc)" });
+  var $durL = el("label", {}, "Duration (1s)");
+  var $fps = el("select", {}, ...[10, 15, 20, 24, 30].map((f) => el("option", { value: f }, f + " fps")));
+  $fps.value = 20;
+  var $pv = btn("\u25B6 Preview transition", async () => {
+    if (preview) {
+      cancelAnimationFrame(preview.raf);
+      S = preview.orig;
+      preview = null;
+      frozen = false;
+      $pv.textContent = "\u25B6 Preview transition";
+      return draw();
+    }
+    if (busy) return;
+    const from = poseState(selFrom.value), to = poseState(selTo.value);
+    preview = { orig: copy(S) };
+    frozen = true;
+    try {
+      svg.setAttribute("viewBox", (await buildSequence(from, to, 12)).viewBox);
+    } catch (e) {
+      preview = null;
+      frozen = false;
+      return toast(`Preview failed: ${e.message || e}`, 3e3);
+    }
+    const ms = Math.max(300, $dur.value * 1e3), t0 = performance.now();
+    $pv.textContent = "\u25A0 Stop preview";
+    const loop = (now) => {
+      const e = (now - t0) % (ms * 2), l = e < ms ? e / ms : 2 - e / ms;
+      S = interpolatePose(from, to, 0.5 - 0.5 * Math.cos(l * Math.PI));
+      draw();
+      preview.raf = requestAnimationFrame(loop);
+    };
+    preview.raf = requestAnimationFrame(loop);
+  });
+  async function exportAnim(kind) {
+    const from = poseState(selFrom.value), to = poseState(selTo.value), fps = +$fps.value, dur = +$dur.value, n = Math.max(2, Math.round(dur * fps)), size = 512, parts = [];
+    const seq = await buildSequence(from, to, n, (c, t) => progress("Measuring frames", c, t));
+    for (let i = 0; i < n; i++) {
+      progress(`Rendering ${kind.toUpperCase()} frame`, i + 1, n);
+      const cv = await canvasFromMarkup(seq.frames[i].markup, seq.viewBox, size), px = () => cv.getContext("2d").getImageData(0, 0, size, size).data;
+      parts.push(kind === "gif" ? gifFrame(gifIndices(px()), size, size, fps) : kind === "apng" ? await compressPngPixels(px(), size, size) : new Uint8Array(await (await canvasBlob(cv)).arrayBuffer()));
+    }
+    let blob, name;
+    if (kind === "gif") {
+      blob = new Blob([...gifHeader(size, size), ...parts, Uint8Array.of(59)], { type: "image/gif" });
+      name = "-anim.gif";
+    } else if (kind === "apng") {
+      blob = encodeApng(parts, size, size, fps);
+      name = "-anim.png";
+    } else {
+      const files = parts.map((data, i) => ({ name: `frame_${String(i).padStart(3, "0")}.png`, data }));
+      files.push({ name: "animation.json", data: enc(JSON.stringify({ app: "Pyxl Hand Rig v2", from: selFrom.value, to: selTo.value, durationSeconds: dur, fps, frameCount: n, viewBox: seq.viewBox, frameNames: files.map((f) => f.name) }, null, 2)) });
+      blob = zipStore(files);
+      name = "-frames.zip";
+    }
+    deliver(blob, stem() + name);
+    toast(`Exported ${stem()}${name}`, 2500);
+  }
+  var expBtn = (label, kind, title) => btn(label, guard(() => exportAnim(kind)), { title });
+  var frameIdx = null;
+  var filmRev = 0;
+  var filmSig = "";
+  var $film = el("div", { class: "film" });
+  var $clear = btn("Clear selection", () => {
+    frameIdx = null;
+    markFrame();
+  }, { hidden: "" });
+  var secFilm = section("Keyframe Filmstrip Preview", "\u2728", true, el("small", {}, "Click a thumbnail to preview that frame on stage:"), $film, $clear);
+  var markFrame = () => {
+    $film.querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === frameIdx));
+    $clear.hidden = frameIdx === null;
+  };
+  async function filmstrip() {
+    const rev = ++filmRev, seq = await buildSequence(poseState(selFrom.value), poseState(selTo.value), 6);
+    if (rev !== filmRev) return;
+    $film.replaceChildren(...seq.frames.map((f, i) => {
+      const pct = Math.round(i / 5 * 100), sec = (i / 5 * $dur.value).toFixed(2) + "s";
+      const b = el("button", { title: `Frame ${pct}% (${sec}): click to preview on stage`, onclick: () => {
+        if (preview) return;
+        cancelAnimationFrame(anim);
+        commit();
+        frameIdx = i;
+        S = copy(f.pose);
+        draw();
+        commit();
+        markFrame();
+        toast(`Previewing frame ${pct}% (${sec})`, 1500);
+      } });
+      b.innerHTML = `<svg viewBox="${seq.viewBox}">${f.markup}</svg><span>${pct}%</span><small>${sec}</small>`;
+      return b;
+    }));
+    badge(secFilm, "6 frames");
+    markFrame();
+  }
+  sync.push(() => {
+    if (flies.anim.hidden) return;
+    const sig = [selFrom.value, selTo.value, $dur.value, JSON.stringify(keep(S)), savedRev].join("|");
+    if (sig !== filmSig) {
+      filmSig = sig;
+      filmstrip().catch(() => {
+      });
+    }
+  });
+  selFrom.onchange = selTo.onchange = () => {
+    frameIdx = null;
+    sync.forEach((f) => f());
+  };
+  $dur.oninput = () => {
+    $durL.textContent = `Duration (${$dur.value}s)`;
+    sync.forEach((f) => f());
+  };
+  fly(
+    "anim",
+    "r",
+    "Pose-to-Pose Animation",
+    section("Transition Pose Selectors", "\u{1F39E}", true, el("label", {}, "From pose"), selFrom, el("label", {}, "To pose"), selTo),
+    secFilm,
+    section("Timing & Live Preview", "\u25B6", true, $durL, $dur, el("label", {}, "Framerate"), $fps, $pv),
+    section(
+      "Export Animation Encoders",
+      "\u2B07",
+      true,
+      el("div", { class: "r2" }, expBtn("GIF", "gif", "Transparent animated GIF"), expBtn("APNG", "apng", "Full-colour animated PNG"), expBtn("ZIP", "zip", "Numbered PNG frames + animation.json")),
+      $bar,
+      $stage,
+      el("small", {}, "GIF is limited to a 256-colour palette; APNG and ZIP keep full colour and transparency.")
+    )
+  );
+  var bldBtn = el("button", { class: "bld", onclick: cycleBuild });
+  sync.push(() => {
+    const b = BUILDS.find((x) => x[0] === S.build) ?? BUILDS[0];
+    bldBtn.title = `Build: ${b[2]}. Click for next.`;
+    bldBtn.replaceChildren(el("b", {}, b[1]), b[0] === "mickey" ? "Mickey" : b[0]);
+  });
+  stage.append(
+    el(
+      "div",
+      { class: "tb l" },
+      tbtn("\u{1F4D6}", "Pose library", () => show("lib")),
+      tbtn("\u{1F39A}", "Live pose morph", () => show("morph")),
+      el("hr"),
+      ...QUICK.map(([k, i]) => tbtn(i, k, () => applyPose(k), { "data-q": k })),
+      el("hr"),
+      tbtn("+", "Curl all fingers +15\xB0", () => curl(15)),
+      tbtn("\u2212", "Extend all fingers \u221215\xB0", () => curl(-15)),
+      tbtn("\u{1F3B2}", "Randomize gesture", shuffle)
+    ),
+    el(
+      "div",
+      { class: "tb r" },
+      bldBtn,
+      el("hr"),
+      tbtn("\u2699", "Hand rig settings", () => show("rig")),
+      tbtn("\u{1F5BC}", "Save pose image", () => show("img")),
+      tbtn("\u{1F39E}", "Pose-to-pose animation", () => show("anim")),
+      el("hr"),
+      tbtn("\u21B6", "Undo (Ctrl+Z)", () => stepHist(-1), { class: "u" }),
+      tbtn("\u21B7", "Redo (Ctrl+Y)", () => stepHist(1), { class: "r" }),
+      tbtn("\u21CB", "Mirror hand", mirror),
+      tbtn("\u27F2", "Reset to neutral flat", reset),
+      el("hr"),
+      tbtn("\uFF0B", "Quick save as new numbered pose", () => savePose(true)),
+      tbtn("\uFF0D", "Delete selected saved pose", delPose)
+    )
+  );
+  $("#builds").append(...BUILDS.map(([id, , label]) => btn(id === "mickey" ? "Mickey's" : id, () => setBuild(id), { "data-b": id, title: label, style: "text-transform:capitalize" })));
+  sync.push(() => document.querySelectorAll("[data-b]").forEach((b) => b.classList.toggle("on", b.dataset.b === S.build)), () => $("#info").textContent = `Wrist ${S.wrist}\xB0 \xB7 Splay ${S.splay}% \xB7 Tilt ${S.tilt}\xB0`);
+  $("#hu").onclick = () => stepHist(-1);
+  $("#hr").onclick = () => stepHist(1);
+  $("#hq").onclick = () => $("#help").hidden = false;
+  $("#hx").onclick = () => $("#help").hidden = true;
+  var setTheme = (t) => {
+    document.body.dataset.theme = t;
+    $("#th").textContent = t === "dark" ? "\u2600" : "\u263E";
+  };
+  $("#th").onclick = () => setTheme(document.body.dataset.theme === "dark" ? "light" : "dark");
+  setTheme("dark");
+  for (const d of CONTROLS_FINGER_ORDER) {
+    const mid = d === "middle", th = d === "thumb", $reach = el("small", {}), g = el("div", { class: "grp" });
+    const set3 = (i, v) => S.cj[d][i] = v;
+    g.append(el("h3", {}, mid ? "Middle (Master Bird)" : d[0].toUpperCase() + d.slice(1), $reach));
+    if (!mid) g.append(slider("Splay add", "%", () => [-100, 100], () => th ? S.thumb : S.fs[d], (v) => th ? S.thumb = v : S.fs[d] = v));
+    g.append(
+      slider("Rotation", "\xB0", () => rRange(d, S.expert), () => S.rot[d], (v) => S.rot[d] = v),
+      slider("Curl (all)", "\xB0", () => cRange(d, S.expert), () => Math.round(S.cj[d].reduce((a, b) => a + b) / 3), (v) => S.cj[d] = [v, v, v]),
+      el("details", { open: "" }, el("summary", {}, "Joint curls (3 joints)"), el(
+        "div",
+        { class: "col" },
+        ...["Knuckle", "Middle joint", "Tip joint"].map((l, i) => slider(l, "\xB0", () => cRange(d, S.expert), () => S.cj[d][i], (v) => set3(i, v)))
+      ))
+    );
+    sync.push(() => {
+      g.classList.toggle("off", !getActiveFingers(S.build).includes(d));
+      $reach.textContent = `Reach ${reach(d, S.o)} pyxls`;
+    });
+    $("#c").append(g);
+  }
+  $("#c").append(el("div", { id: "rd", html: "<b>Pyxl Hand Rig v2 \u2014 canonical rules &amp; reach.</b><br><b>Reach:</b> Middle 8 raw / 7 functional \xB7 Ring 7.5 / 6.5 \xB7 Index 7.5 / 6.5 \xB7 Pinky 7 / 6 \xB7 Thumb 5 / 4.5.<br><b>Proportions:</b> the middle finger sets the master 4:2:1:1 (metacarpal : proximal : middle : distal); each bone fits a 1-wide box, the distal leaves 12.5% empty each side (0.75 pyxl). 1 pyxl = 100 px." }));
+  refresh();
+  updHist();
+  draw();
+})();
+</script></body></html>

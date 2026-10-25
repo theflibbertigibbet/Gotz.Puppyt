@@ -1,0 +1,6 @@
+{
+  "name": "Gotz.Puppyt",
+  "description": "Gotz.Puppyt Hand Rig v2 — interactive 2D hand rigging, IK posing, keyframing, and animation studio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
