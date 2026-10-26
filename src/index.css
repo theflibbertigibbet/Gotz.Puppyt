@@ -74,7 +74,7 @@ body {
 }
 
 header {
-  height: 48px;
+  height: 44px;
   flex: none;
   display: flex;
   align-items: center;
@@ -82,6 +82,18 @@ header {
   padding: 0 16px;
   background: var(--panel);
   border-bottom: 1px solid var(--bd);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  box-shadow: 0 4px 16px #0004;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+
+header.minimized {
+  transform: translateY(-82%);
+  opacity: 0.85;
 }
 
 header b {
@@ -163,11 +175,13 @@ button.on {
 }
 
 #stage {
-  position: relative;
-  flex: none;
-  height: 66.667%;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   background: var(--stage);
+  z-index: 10;
 }
 
 #s {
@@ -1206,10 +1220,19 @@ textarea {
   align-items: center;
   gap: 10px;
   padding: 0 14px;
-  position: relative;
-  z-index: 30;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
   box-shadow: 0 -4px 16px #0003;
   user-select: none;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+
+#timeline.minimized {
+  transform: translateY(calc(100% - 10px));
+  opacity: 0.85;
 }
 
 .tl-left,

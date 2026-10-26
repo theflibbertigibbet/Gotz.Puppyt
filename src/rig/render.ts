@@ -59,6 +59,46 @@ export function skinPath(part: ArtPart, yBase: number, len: number): string {
   return d + ' Z';
 }
 
+export function structuralBonePath(d: Finger, i: number, yTop: number, yBot: number, w: number, n: number): string {
+  const f = (v: number) => +v.toFixed(3);
+  const h = Math.abs(yBot - yTop);
+  if (i === n - 1) {
+    // Distal tip segment with anatomical rounded dome arch
+    const l = -w * 0.46;
+    const r = w * 0.46;
+    const lShaft = -w * 0.38;
+    const rShaft = w * 0.38;
+    const yMid = yTop + h * 0.5;
+    const capR = w * 0.44;
+
+    return (
+      `M ${f(l)} ${f(yBot)} ` +
+      `C ${f(l)} ${f(yBot - h * 0.2)} ${f(lShaft)} ${f(yMid + h * 0.1)} ${f(lShaft)} ${f(yMid)} ` +
+      `C ${f(lShaft)} ${f(yTop + capR)} ${f(-capR)} ${f(yTop)} 0 ${f(yTop)} ` +
+      `C ${f(capR)} ${f(yTop)} ${f(rShaft)} ${f(yTop + capR)} ${f(rShaft)} ${f(yMid)} ` +
+      `C ${f(rShaft)} ${f(yMid + h * 0.1)} ${f(r)} ${f(yBot - h * 0.2)} ${f(r)} ${f(yBot)} Z`
+    );
+  } else {
+    // Shaft bones (metacarpals, proximals, middle) with anatomical condyle flares & waist narrowing
+    const l = -w * 0.46;
+    const r = w * 0.46;
+    const lMid = -w * 0.37;
+    const rMid = w * 0.37;
+    const lTop = -w * 0.44;
+    const rTop = w * 0.44;
+    const yMid = yTop + h * 0.5;
+
+    return (
+      `M ${f(l)} ${f(yBot)} ` +
+      `C ${f(l)} ${f(yBot - h * 0.2)} ${f(lMid)} ${f(yMid + h * 0.1)} ${f(lMid)} ${f(yMid)} ` +
+      `C ${f(lMid)} ${f(yMid - h * 0.1)} ${f(lTop)} ${f(yTop + h * 0.2)} ${f(lTop)} ${f(yTop)} ` +
+      `L ${f(rTop)} ${f(yTop)} ` +
+      `C ${f(rTop)} ${f(yTop + h * 0.2)} ${f(rMid)} ${f(yMid - h * 0.1)} ${f(rMid)} ${f(yMid)} ` +
+      `C ${f(rMid)} ${f(yMid + h * 0.1)} ${f(r)} ${f(yBot - h * 0.2)} ${f(r)} ${f(yBot)} Z`
+    );
+  }
+}
+
 export function handMarkup(st: HandState, hit = false, bend = false): string {
   const chain = (d: Finger, i: number): string => {
     const B = BONES[d];
@@ -89,28 +129,23 @@ export function handMarkup(st: HandState, hit = false, bend = false): string {
     const { top: yTop, bot: yBot } = boneSpan(d, i, st.o, st.skin);
     if (art) {
       s2 += `<path class="bone" d="${skinPath(ART_FOR[d][i], yBot, yBot - yTop)}"/>`;
-    } else if (i === n - 1) {
-      const r = w * 0.45;
-      const l = -w / 2;
-      const rt = w / 2;
-      s2 += `<path class="bone" d="M ${l} ${bot} L ${l} ${top + r} A ${r} ${r} 0 0 1 ${l + r} ${top} L ${rt - r} ${top} A ${r} ${r} 0 0 1 ${rt} ${top + r} L ${rt} ${bot} Z"/>`;
     } else {
-      s2 += `<rect class="bone" x="${-w / 2}" y="${yTop}" width="${w}" height="${yBot - yTop}" rx="0.04"/>`;
+      s2 += `<path class="bone" d="${structuralBonePath(d, i, yTop, yBot, w, n)}"/>`;
     }
     if (hit) {
-      const boneJointIdx = i === n - 1 ? n - 1 : i;
-      s2 += `<rect class="hit" x="${-w / 2 - 0.25}" y="${yTop - 0.25}" width="${w + 0.5}" height="${yBot - yTop + 0.5}" data-d="${d}" data-j="${boneJointIdx}"><title>${d} bone ${i}</title></rect>`;
+      const boneJointIdx = i;
+      s2 += `<rect class="hit" x="${-w / 2 - 0.3}" y="${yTop - 0.25}" width="${w + 0.6}" height="${yBot - yTop + 0.5}" data-d="${d}" data-j="${boneJointIdx}"><title>${d} bone ${i}</title></rect>`;
       if (i === n - 1) {
         // Generous fingertip hit circle
-        s2 += `<circle class="hit" cx="0" cy="${top}" r="0.42" data-d="${d}" data-j="${n - 1}"><title>${d} fingertip</title></circle>`;
+        s2 += `<circle class="hit" cx="0" cy="${top}" r="0.5" data-d="${d}" data-j="3"><title>${d} fingertip</title></circle>`;
       }
     }
     if (i + 1 < n) {
       const cj = st.cj[d][i] || 0;
       const turn = bendTurn(d, cj) || 0;
       s2 +=
-        `<g transform="translate(0 ${top + J / 2})"><g transform="rotate(${turn})">${chain(d, i + 1)}<circle class="child-joint" r="0.05"/><circle class="parent-joint" r="0.03" fill="url(#parentJointGrad)"/>` +
-        (hit ? `<circle class="hit" r="${Math.max(jr, 0.42)}" data-d="${d}" data-j="${i}"><title>${d} joint ${i}</title></circle>` : '') +
+        `<g transform="translate(0 ${top + J / 2})"><g transform="rotate(${turn})">${chain(d, i + 1)}<circle class="child-joint" r="0.065"/><circle class="parent-joint" r="0.035"/><circle class="joint-center" r="0.015" fill="var(--fg)" opacity="0.8"/>` +
+        (hit ? `<circle class="hit" r="${Math.max(jr * 1.8, 0.5)}" data-d="${d}" data-j="${i}"><title>${d} joint ${i}</title></circle>` : '') +
         `</g>` +
         (bend && cj ? bendMark(turn, cj) : '') +
         `</g>`;
@@ -125,10 +160,12 @@ export function handMarkup(st: HandState, hit = false, bend = false): string {
   // Render wrist socket and hit area BEHIND the fingers so fingers have top hit priority
   const wristBase =
     `<g class="wrist-group">` +
-    `<circle class="wrist-sock" r="0.325"/>` +
-    `<circle class="wrist-plug" r="0.1"/>` +
+    `<path class="wrist-sock" d="M -0.45 0.35 C -0.5 0.1 -0.35 -0.15 0 -0.18 C 0.35 -0.15 0.5 0.1 0.45 0.35 C 0.3 0.42 -0.3 0.42 -0.45 0.35 Z"/>` +
+    `<circle class="wrist-sock" r="0.32"/>` +
+    `<circle class="wrist-plug" r="0.12"/>` +
+    `<circle class="parent-joint" r="0.04" fill="var(--acc)"/>` +
     (hit
-      ? `<circle class="hit" cx="0" cy="0.18" r="0.28" data-w="1"><title>Wrist hub: drag to rotate the whole hand</title></circle>`
+      ? `<circle class="hit" cx="0" cy="0.08" r="0.55" data-w="1"><title>Wrist hub: drag to rotate the whole hand</title></circle>`
       : '') +
     `</g>`;
 

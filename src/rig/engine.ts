@@ -523,42 +523,30 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
 
     hand.setAttribute('transform', `rotate(${S.wrist})`);
     hand.innerHTML = handMarkup(S, true, showBend);
+    fit();
     sync.forEach((f) => f());
-    if (!frozen) fit();
   }
 
   function fit() {
-    const bb = hand.getBBox();
     const r = stage.getBoundingClientRect();
-    const asp = Math.max(0.2, (r.width || 800) / (r.height || 500));
-    const bh = 10.5;
+    const w = r.width || window.innerWidth || 800;
+    const h = r.height || window.innerHeight || 600;
+    const asp = Math.max(0.2, w / h);
+    const bh = 11.5;
     const dw = asp >= 1 ? bh * asp : bh;
     const dh = asp >= 1 ? bh : bh / asp;
-    const dy = 1.3 - dh;
-    let v = [-dw / 2, dy, dw, dh];
-    if (bb.width > 0 && bb.height > 0) {
-      const c = Math.cos(S.wrist * R);
-      const s = Math.sin(S.wrist * R);
-      const bottom = Math.max(
-        ...[bb.x, bb.x + bb.width].flatMap((x) => [bb.y, bb.y + bb.height].map((y) => x * s + y * c))
-      );
-      if (bottom > 1.3) {
-        const h = Math.max(dh, bottom + 0.6 - dy);
-        const w = asp >= 1 ? h * asp : h;
-        v = [-w / 2, dy, w, h];
-      }
-    }
-    svg.setAttribute('viewBox', v.join(' '));
+    const dy = 1.25 - dh;
+    svg.setAttribute('viewBox', `-${dw / 2} ${dy} ${dw} ${dh}`);
   }
 
   const gridEl = $<SVGGElement>('#grid');
   if (gridEl) {
-    gridEl.innerHTML = Array.from({ length: 29 }, (_, i) => i - 14)
+    gridEl.innerHTML = Array.from({ length: 41 }, (_, i) => i - 20)
       .map(
         (n) =>
-          `<line class="${n ? 'g-unit' : 'axis'}" x1="${n}" y1="-14" x2="${n}" y2="14"/><line class="${
-            n ? 'g-unit' : 'axis'
-          }" x1="-14" y1="${n}" x2="14" y2="${n}"/>`
+          `<line class="${n === 0 ? 'axis' : n % 5 === 0 ? 'g-major' : 'g-unit'}" x1="${n}" y1="-20" x2="${n}" y2="20"/><line class="${
+            n === 0 ? 'axis' : n % 5 === 0 ? 'g-major' : 'g-unit'
+          }" x1="-20" y1="${n}" x2="20" y2="${n}"/>`
       )
       .join('');
   }
@@ -1721,20 +1709,21 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       el('hr'),
       tbtn('+15', 'Curl all fingers +15\xB0', () => curl(15)),
       tbtn('-15', 'Extend all fingers \u221215\xB0', () => curl(-15)),
-      tbtn('[: :]', 'Randomize gesture', shuffle)
+      tbtn('<|>', 'Mirror hand', mirror),
+      tbtn('[: :]', 'Randomize gesture', shuffle),
+      tbtn('[0]', 'Reset to flat', reset)
     ),
     el(
       'div',
       { class: 'tb r' },
+      tbtn('[CTRL]', 'Precise pose & joint controls', () => show('ctrls')),
+      el('hr'),
       bldBtn,
       fpsBtn, // Located directly beneath the hand toggle!
       el('hr'),
       tbtn('[CFG]', 'Hand rig settings', () => show('rig')),
       tbtn('[IMG]', 'Save pose image', () => show('img')),
-      tbtn('[FLM]', 'Pose-to-pose animation', () => show('anim')),
-      el('hr'),
-      tbtn('<|>', 'Mirror hand', mirror),
-      tbtn('[0]', 'Reset to flat', reset)
+      tbtn('[FLM]', 'Pose-to-pose animation', () => show('anim'))
     )
   );
 
@@ -1792,226 +1781,256 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
   if (th) th.onclick = () => setTheme(document.body.dataset.theme === 'dark' ? 'light' : 'dark');
   setTheme('dark');
 
-  const controlsContainer = $<HTMLDivElement>('#c');
-  if (controlsContainer) {
-    controlsContainer.replaceChildren();
+  const menuHeader = el('div', { class: 'bottom-menu-header' });
 
-    const menuHeader = el('div', { class: 'bottom-menu-header' });
-
-    const tabBar = el('div', { class: 'finger-tab-bar' });
-    FINGER_TABS.forEach((tab) => {
-      const b = el(
-        'button',
-        {
-          class: `ftab ${tab.id === 'all' ? 'all-tab' : ''} ${tab.id === activeTab ? 'on' : ''}`,
-          onclick: () => {
-            activeTab = tab.id;
-            updateFingerTabs();
-          },
+  const tabBar = el('div', { class: 'finger-tab-bar' });
+  FINGER_TABS.forEach((tab) => {
+    const b = el(
+      'button',
+      {
+        class: `ftab ${tab.id === 'all' ? 'all-tab' : ''} ${tab.id === activeTab ? 'on' : ''}`,
+        onclick: () => {
+          activeTab = tab.id;
+          updateFingerTabs();
         },
-        tab.label
-      ) as HTMLButtonElement;
-      tabButtons[tab.id] = b;
-      tabBar.append(b);
-    });
+      },
+      tab.label
+    ) as HTMLButtonElement;
+    tabButtons[tab.id] = b;
+    tabBar.append(b);
+  });
 
-    $menuLabel = el('span', { class: 'menu-finger-label' }, 'INDEX');
-    $menuReach = el('span', { class: 'menu-finger-reach' }, 'Reach: 7.5 pyxls');
-    const labelReachBox = el('div', { class: 'menu-label-reach' }, $menuLabel, $menuReach);
+  $menuLabel = el('span', { class: 'menu-finger-label' }, 'INDEX');
+  $menuReach = el('span', { class: 'menu-finger-reach' }, 'Reach: 7.5 pyxls');
+  const labelReachBox = el('div', { class: 'menu-label-reach' }, $menuLabel, $menuReach);
 
-    tglBoxMeta = createRotationToggleBox('meta', 'Meta');
-    tglBoxFinger = createRotationToggleBox('finger', 'Finger');
-    tglBoxGrip = createRotationToggleBox('grip', 'Grip');
-    tglBoxTip = createRotationToggleBox('tip', 'Tip');
+  tglBoxMeta = createRotationToggleBox('meta', 'Meta');
+  tglBoxFinger = createRotationToggleBox('finger', 'Finger');
+  tglBoxGrip = createRotationToggleBox('grip', 'Grip');
+  tglBoxTip = createRotationToggleBox('tip', 'Tip');
 
-    const togglesBox = el(
-      'div',
-      { class: 'toggles-group' },
-      el('span', { class: 'toggles-title' }, 'ROTATION TOGGLES:'),
-      tglBoxMeta.container,
-      tglBoxFinger.container,
-      tglBoxGrip.container,
-      tglBoxTip.container
-    );
+  const togglesBox = el(
+    'div',
+    { class: 'toggles-group' },
+    el('span', { class: 'toggles-title' }, 'ROTATION TOGGLES:'),
+    tglBoxMeta.container,
+    tglBoxFinger.container,
+    tglBoxGrip.container,
+    tglBoxTip.container
+  );
 
-    const subBar = el('div', { class: 'menu-sub-bar' }, labelReachBox, togglesBox);
-    menuHeader.append(tabBar, subBar);
+  const subBar = el('div', { class: 'menu-sub-bar' }, labelReachBox, togglesBox);
+  menuHeader.append(tabBar, subBar);
 
-    const cardsGrid = el('div', { class: 'finger-cards-grid' });
-    const CARD_ORDER: Finger[] = ['index', 'middle', 'ring', 'pinky', 'thumb'];
+  const cardsGrid = el('div', { class: 'finger-cards-grid' });
+  const CARD_ORDER: Finger[] = ['index', 'middle', 'ring', 'pinky', 'thumb'];
 
-    for (const d of CARD_ORDER) {
-      const mid = d === 'middle';
-      const thFinger = d === 'thumb';
-      const g = el('div', { class: 'grp' });
-      fingerGroupEls[d] = g;
+  for (const d of CARD_ORDER) {
+    const mid = d === 'middle';
+    const thFinger = d === 'thumb';
+    const g = el('div', { class: 'grp' });
+    fingerGroupEls[d] = g;
 
-      const set3 = (i: number, v: number) => (S.cj[d][i] = v);
-      g.append(el('h3', {}, mid ? 'Middle (Bird) Controls' : d[0].toUpperCase() + d.slice(1) + ' Controls'));
-      if (!mid) {
-        g.append(
-          slider(
-            'Splay add',
-            '%',
-            () => [-100, 100],
-            () => (thFinger ? S.thumb : S.fs[d]),
-            (v) => (thFinger ? (S.thumb = v) : (S.fs[d] = v))
-          )
-        );
-      }
+    const set3 = (i: number, v: number) => (S.cj[d][i] = v);
+    g.append(el('h3', {}, mid ? 'Middle (Bird) Controls' : d[0].toUpperCase() + d.slice(1) + ' Controls'));
+    if (!mid) {
       g.append(
         slider(
-          'Rotation',
-          '\xB0',
-          () => rRange(d, S.expert, S.fullElasticity),
-          () => S.rot[d],
-          (v) => (S.rot[d] = v)
-        ),
-        slider(
-          'Curl (all)',
-          '\xB0',
-          () => cRange(d, S.expert),
-          () => Math.round(S.cj[d].reduce((a, b) => a + b) / 3),
-          (v) => (S.cj[d] = [v, v, v])
-        ),
+          'Splay add',
+          '%',
+          () => [-100, 100],
+          () => (thFinger ? S.thumb : S.fs[d]),
+          (v) => (thFinger ? (S.thumb = v) : (S.fs[d] = v))
+        )
+      );
+    }
+    g.append(
+      slider(
+        'Rotation',
+        '\xB0',
+        () => rRange(d, S.expert, S.fullElasticity),
+        () => S.rot[d],
+        (v) => (S.rot[d] = v)
+      ),
+      slider(
+        'Curl (all)',
+        '\xB0',
+        () => cRange(d, S.expert),
+        () => Math.round(S.cj[d].reduce((a, b) => a + b) / 3),
+        (v) => (S.cj[d] = [v, v, v])
+      ),
+      el(
+        'details',
+        { open: '' },
+        el('summary', {}, 'Joint curls (3 joints)'),
         el(
-          'details',
-          { open: '' },
-          el('summary', {}, 'Joint curls (3 joints)'),
-          el(
-            'div',
-            { class: 'col' },
-            ...['Knuckle', 'Middle joint', 'Tip joint'].map((l, i) =>
-              slider(
-                l,
-                '\xB0',
-                () => cRange(d, S.expert),
-                () => S.cj[d][i],
-                (v) => set3(i, v)
-              )
+          'div',
+          { class: 'col' },
+          ...['Knuckle', 'Middle joint', 'Tip joint'].map((l, i) =>
+            slider(
+              l,
+              '\xB0',
+              () => cRange(d, S.expert),
+              () => S.cj[d][i],
+              (v) => set3(i, v)
             )
           )
         )
-      );
-      sync.push(() => {
-        g.classList.toggle('off', !getActiveFingers(S.build).includes(d));
-      });
-      cardsGrid.append(g);
+      )
+    );
+    sync.push(() => {
+      g.classList.toggle('off', !getActiveFingers(S.build).includes(d));
+    });
+    cardsGrid.append(g);
+  }
+
+  function createPosingWheel() {
+    const card = el('div', { class: 'posing-wheel-card' });
+    const title = el('span', { class: 'posing-wheel-title' }, 'WRIST POSING WHEEL');
+    const valText = el('span', { class: 'posing-wheel-val' }, `${Math.round(S.wrist)}\xB0`);
+    const header = el('div', { class: 'posing-wheel-header' }, title, valText);
+
+    const wrap = el('div', { class: 'posing-wheel-wrap' });
+    const wheelSvg = el('svg', { class: 'posing-wheel-svg', viewBox: '-50 -50 100 100' });
+
+    // Render 12 radial ticks every 30 deg
+    const ticksG = el('g', { class: 'posing-wheel-ticks' });
+    for (let deg = 0; deg < 360; deg += 30) {
+      const rad = (deg * Math.PI) / 180;
+      const x1 = Math.sin(rad) * 38;
+      const y1 = -Math.cos(rad) * 38;
+      const x2 = Math.sin(rad) * 44;
+      const y2 = -Math.cos(rad) * 44;
+      ticksG.append(el('line', { x1, y1, x2, y2 }));
     }
 
-    function createPosingWheel() {
-      const card = el('div', { class: 'posing-wheel-card' });
-      const title = el('span', { class: 'posing-wheel-title' }, 'WRIST POSING WHEEL');
-      const valText = el('span', { class: 'posing-wheel-val' }, `${Math.round(S.wrist)}\xB0`);
-      const header = el('div', { class: 'posing-wheel-header' }, title, valText);
+    const ring = el('circle', { class: 'posing-wheel-ring', r: 42, cx: 0, cy: 0 });
+    const indicator = el('line', { class: 'posing-wheel-indicator', x1: 0, y1: 0, x2: 0, y2: -36 });
+    const knob = el('circle', { class: 'posing-wheel-knob', r: 22, cx: 0, cy: 0 });
+    const centerTxt = el('text', { class: 'posing-wheel-center-txt', x: 0, y: 0 }, `${Math.round(S.wrist)}\xB0`);
 
-      const wrap = el('div', { class: 'posing-wheel-wrap' });
-      const wheelSvg = el('svg', { class: 'posing-wheel-svg', viewBox: '-50 -50 100 100' });
+    wheelSvg.append(ticksG, ring, indicator, knob, centerTxt);
+    wrap.append(wheelSvg);
 
-      // Render 12 radial ticks every 30 deg
-      const ticksG = el('g', { class: 'posing-wheel-ticks' });
-      for (let deg = 0; deg < 360; deg += 30) {
-        const rad = (deg * Math.PI) / 180;
-        const x1 = Math.sin(rad) * 38;
-        const y1 = -Math.cos(rad) * 38;
-        const x2 = Math.sin(rad) * 44;
-        const y2 = -Math.cos(rad) * 44;
-        ticksG.append(el('line', { x1, y1, x2, y2 }));
+    let isWheelDragging = false;
+
+    const updateWheelPointer = (deg: number) => {
+      const rad = (deg * Math.PI) / 180;
+      indicator.setAttribute('x2', String(Math.sin(rad) * 36));
+      indicator.setAttribute('y2', String(-Math.cos(rad) * 36));
+      centerTxt.textContent = `${Math.round(deg)}\xB0`;
+      valText.textContent = `${Math.round(deg)}\xB0 \xB7 Pose: ${getPoseLanguage(S)}`;
+    };
+
+    wrap.onpointerdown = (e: PointerEvent) => {
+      isWheelDragging = true;
+      wrap.setPointerCapture(e.pointerId);
+      const rect = wrap.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      let angle = Math.atan2(e.clientX - cx, -(e.clientY - cy)) * (180 / Math.PI);
+      S.wrist = clamp(Math.round(angle), -180, 180);
+      updateWheelPointer(S.wrist);
+      draw();
+    };
+
+    wrap.onpointermove = (e: PointerEvent) => {
+      if (!isWheelDragging) return;
+      const rect = wrap.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      let angle = Math.atan2(e.clientX - cx, -(e.clientY - cy)) * (180 / Math.PI);
+      S.wrist = clamp(Math.round(angle), -180, 180);
+      updateWheelPointer(S.wrist);
+      draw();
+    };
+
+    wrap.onpointerup = wrap.onpointercancel = () => {
+      if (isWheelDragging) {
+        isWheelDragging = false;
+        commit();
       }
+    };
 
-      const ring = el('circle', { class: 'posing-wheel-ring', r: 42, cx: 0, cy: 0 });
-      const indicator = el('line', { class: 'posing-wheel-indicator', x1: 0, y1: 0, x2: 0, y2: -36 });
-      const knob = el('circle', { class: 'posing-wheel-knob', r: 22, cx: 0, cy: 0 });
-      const centerTxt = el('text', { class: 'posing-wheel-center-txt', x: 0, y: 0 }, `${Math.round(S.wrist)}\xB0`);
-
-      wheelSvg.append(ticksG, ring, indicator, knob, centerTxt);
-      wrap.append(wheelSvg);
-
-      let isWheelDragging = false;
-
-      const updateWheelPointer = (deg: number) => {
-        const rad = (deg * Math.PI) / 180;
-        indicator.setAttribute('x2', String(Math.sin(rad) * 36));
-        indicator.setAttribute('y2', String(-Math.cos(rad) * 36));
-        centerTxt.textContent = `${Math.round(deg)}\xB0`;
-        valText.textContent = `${Math.round(deg)}\xB0 \xB7 Pose: ${getPoseLanguage(S)}`;
-      };
-
-      wrap.onpointerdown = (e: PointerEvent) => {
-        isWheelDragging = true;
-        wrap.setPointerCapture(e.pointerId);
-        const rect = wrap.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        let angle = Math.atan2(e.clientX - cx, -(e.clientY - cy)) * (180 / Math.PI);
-        S.wrist = clamp(Math.round(angle), -180, 180);
-        updateWheelPointer(S.wrist);
+    const snapBtn = (lbl: string, deg: number) =>
+      btn(lbl, () => {
+        S.wrist = deg;
+        updateWheelPointer(deg);
+        commit();
         draw();
-      };
-
-      wrap.onpointermove = (e: PointerEvent) => {
-        if (!isWheelDragging) return;
-        const rect = wrap.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        let angle = Math.atan2(e.clientX - cx, -(e.clientY - cy)) * (180 / Math.PI);
-        S.wrist = clamp(Math.round(angle), -180, 180);
-        updateWheelPointer(S.wrist);
-        draw();
-      };
-
-      wrap.onpointerup = wrap.onpointercancel = () => {
-        if (isWheelDragging) {
-          isWheelDragging = false;
-          commit();
-        }
-      };
-
-      const snapBtn = (lbl: string, deg: number) =>
-        btn(lbl, () => {
-          S.wrist = deg;
-          updateWheelPointer(deg);
-          commit();
-          draw();
-          toast(`Wrist: ${deg}\xB0`, 1200);
-        });
-
-      const snaps = el(
-        'div',
-        { class: 'posing-wheel-snaps' },
-        snapBtn('0\xB0 Flat', 0),
-        snapBtn('90\xB0 Up', 90),
-        snapBtn('-90\xB0 Down', -90),
-        snapBtn('180\xB0 Back', 180)
-      );
-
-      const controls = el('div', { class: 'posing-wheel-controls' }, snaps);
-      const body = el('div', { class: 'posing-wheel-body' }, wrap, controls);
-
-      card.append(header, body);
-
-      sync.push(() => {
-        updateWheelPointer(S.wrist);
+        toast(`Wrist: ${deg}\xB0`, 1200);
       });
 
-      return card;
-    }
-
-    sync.push(updateTopHeaderAndToggles);
-
-    const wheelWidget = createPosingWheel();
-
-    controlsContainer.append(
-      menuHeader,
-      cardsGrid,
-      wheelWidget,
-      el('div', {
-        id: 'rd',
-        html: '<b>Gotz.Puppyt Hand Rig v2 \u2014 canonical rules &amp; reach.</b><br><b>Reach:</b> Middle 8 raw / 7 functional \xB7 Ring 7.5 / 6.5 \xB7 Index 7.5 / 6.5 \xB7 Pinky 7 / 6 \xB7 Thumb 5 / 4.5.<br><b>Proportions:</b> the middle finger sets the master 4:2:1:1 (metacarpal : proximal : middle : distal); each bone fits a 1-wide box, the distal leaves 12.5% empty each side (0.75 pyxl). 1 pyxl = 100 px.<br><b>Framerate Modes:</b> Brad 8 FPS \xB7 Lotte 12 FPS (Default) \xB7 Anime 15 FPS \xB7 Walt 24 FPS \xB7 Pure 60 FPS.',
-      })
+    const snaps = el(
+      'div',
+      { class: 'posing-wheel-snaps' },
+      snapBtn('0\xB0 Flat', 0),
+      snapBtn('90\xB0 Up', 90),
+      snapBtn('-90\xB0 Down', -90),
+      snapBtn('180\xB0 Back', 180)
     );
 
-    updateFingerTabs();
+    const controls = el('div', { class: 'posing-wheel-controls' }, snaps);
+    const body = el('div', { class: 'posing-wheel-body' }, wrap, controls);
+
+    card.append(header, body);
+
+    sync.push(() => {
+      updateWheelPointer(S.wrist);
+    });
+
+    return card;
+  }
+
+  sync.push(updateTopHeaderAndToggles);
+
+  const wheelWidget = createPosingWheel();
+
+  fly(
+    'ctrls',
+    'r',
+    'Precise Pose Controls',
+    section('Wrist Posing Wheel & Angles', '(O)', true, wheelWidget, slider('Wrist angle', '\xB0', () => [-180, 180], () => S.wrist, (v) => (S.wrist = v)), slider('Hand splay', '%', () => [-100, 100], () => S.splay, (v) => (S.splay = v))),
+    section('Digit Rotation Toggles & Cards', '[#]', true, menuHeader, cardsGrid),
+    section('Canonical Rules & Reach', '{}', false, el('div', { id: 'rd', html: '<b>Gotz.Puppyt Hand Rig v2 \u2014 canonical rules &amp; reach.</b><br><b>Reach:</b> Middle 8 raw / 7 functional \xB7 Ring 7.5 / 6.5 \xB7 Index 7.5 / 6.5 \xB7 Pinky 7 / 6 \xB7 Thumb 5 / 4.5.<br><b>Proportions:</b> the middle finger sets the master 4:2:1:1 (metacarpal : proximal : middle : distal); each bone fits a 1-wide box, the distal leaves 12.5% empty each side (0.75 pyxl). 1 pyxl = 100 px.<br><b>Framerate Modes:</b> Brad 8 FPS \xB7 Lotte 12 FPS (Default) \xB7 Anime 15 FPS \xB7 Walt 24 FPS \xB7 Pure 60 FPS.' }))
+  );
+
+  updateFingerTabs();
+
+  // Auto-minimize for TOP and BOTTOM bars
+  const headerEl = $<HTMLElement>('header');
+  const timelineEl = $<HTMLElement>('#timeline');
+  let isTopHovered = false;
+  let isBottomHovered = false;
+
+  const updateAutoMinimize = (e: MouseEvent) => {
+    const topThreshold = window.innerHeight * 0.25;
+    const bottomThreshold = window.innerHeight * 0.75;
+
+    const inTop25 = e.clientY <= topThreshold;
+    const inBottom25 = e.clientY >= bottomThreshold;
+
+    if (headerEl) {
+      const expandTop = inTop25 || isTopHovered;
+      headerEl.classList.toggle('minimized', !expandTop);
+    }
+
+    if (timelineEl) {
+      const expandBottom = inBottom25 || isBottomHovered;
+      timelineEl.classList.toggle('minimized', !expandBottom);
+    }
+  };
+
+  window.addEventListener('mousemove', updateAutoMinimize);
+
+  if (headerEl) {
+    headerEl.onmouseenter = () => { isTopHovered = true; headerEl.classList.remove('minimized'); };
+    headerEl.onmouseleave = () => { isTopHovered = false; };
+  }
+
+  if (timelineEl) {
+    timelineEl.onmouseenter = () => { isBottomHovered = true; timelineEl.classList.remove('minimized'); };
+    timelineEl.onmouseleave = () => { isBottomHovered = false; };
   }
 
   // ----------------------------------------------------
@@ -2188,10 +2207,25 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       const delta = (now - lastTime) / 1000;
       lastTime = now;
 
-      // Frame stepping matching the active FPS mode toggle
-      if (currentFps >= 60 || now - tlLastPlayTick >= frameInterval) {
-        tlLastPlayTick = now;
+      if (currentFps >= 60) {
         tlTime += delta / tlDuration;
+        if (tlTime >= 1) {
+          if (tlLoop) {
+            tlTime = tlTime % 1;
+          } else {
+            tlTime = 1;
+            stopTimeline();
+            renderTimeline();
+            applyTimelinePose(1);
+            return;
+          }
+        }
+        renderTimeline();
+        applyTimelinePose(tlTime);
+      } else if (now - tlLastPlayTick >= frameInterval) {
+        const elapsed = (now - tlLastPlayTick) / 1000;
+        tlLastPlayTick = now - ((now - tlLastPlayTick) % frameInterval);
+        tlTime += elapsed / tlDuration;
         if (tlTime >= 1) {
           if (tlLoop) {
             tlTime = tlTime % 1;
@@ -2340,6 +2374,11 @@ export function mountGotzPuppyt(container: HTMLElement): () => void {
       if (onionSkin) draw();
       toast('Pinned current canvas pose as End', 1500);
     };
+  }
+
+  const tlSaveQuickBtn = $<HTMLButtonElement>('#tl-save-quick');
+  if (tlSaveQuickBtn) {
+    tlSaveQuickBtn.onclick = () => savePose(true);
   }
 
   const easeBadge = $<HTMLElement>('#tl-ease-badge');
