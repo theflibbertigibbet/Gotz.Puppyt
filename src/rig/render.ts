@@ -160,7 +160,6 @@ export function handMarkup(st: HandState, hit = false, bend = false): string {
   // Render wrist socket and hit area BEHIND the fingers so fingers have top hit priority
   const wristBase =
     `<g class="wrist-group">` +
-    `<path class="wrist-sock" d="M -0.45 0.35 C -0.5 0.1 -0.35 -0.15 0 -0.18 C 0.35 -0.15 0.5 0.1 0.45 0.35 C 0.3 0.42 -0.3 0.42 -0.45 0.35 Z"/>` +
     `<circle class="wrist-sock" r="0.32"/>` +
     `<circle class="wrist-plug" r="0.12"/>` +
     `<circle class="parent-joint" r="0.04" fill="var(--acc)"/>` +
@@ -175,6 +174,6 @@ export function handMarkup(st: HandState, hit = false, bend = false): string {
     }
   }
 
-  // Fingers render after wristBase, ensuring fingers take precedence in DOM hit-testing
-  return wristBase + s;
+  // Red wrist socket renders ON TOP in front of fingers in SVG z-order
+  return s + wristBase;
 }

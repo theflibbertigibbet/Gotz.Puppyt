@@ -251,7 +251,8 @@ button.on {
 .wrist-sock {
   stroke: var(--wrist);
   stroke-width: 0.04;
-  fill: var(--fill);
+  fill: none;
+  stroke-linejoin: round;
 }
 
 .wrist-plug {
